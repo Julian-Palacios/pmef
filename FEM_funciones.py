@@ -91,7 +91,7 @@ def GenQuadMesh_2D(L, H, lc, fd="./INPUT"):
 	NN 		= noNodes
 	NC 		= noElements
 	Nodos 	= x.T
-	Conex 	= connect
+	Conex 	= connect.T
 
 	return Nodos, Conex, NN, NC
 
