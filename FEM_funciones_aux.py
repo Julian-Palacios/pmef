@@ -32,7 +32,7 @@ g = 9.80665*m/s**2
 
 
 def open_data():
-    with open('./Data/Data.sav', 'rb') as f:
+    with open('./data/Data.sav', 'rb') as f:
         data = pickle.load(f)
     return data
 
@@ -48,7 +48,7 @@ def ProblemData(SpaceDim, pde):
     data['SpaceDim'] = SpaceDim
     data['pde'] = pde
 
-    with open('./Data/Data.sav', 'wb') as f:
+    with open('./data/Data.sav', 'wb') as f:
         pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
 
 
@@ -61,7 +61,7 @@ def ElementData(dof, nodes, noInt, type):
     data['elem_noInt'] = noInt
     data['elem_type'] = type
 
-    with open('./Data/Data.sav', 'wb') as f:
+    with open('./data/Data.sav', 'wb') as f:
         pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
 
 
@@ -74,7 +74,7 @@ def MassData(dof, nodes, noInt, type):
     data['mass_noInt'] = noInt
     data['mass_type'] = type
 
-    with open('./Data/Data.sav', 'wb') as f:
+    with open('./data/Data.sav', 'wb') as f:
         pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
 
 
@@ -89,7 +89,7 @@ def ModelData(E, v, thickness, density, selfWeight, gravity):
     data['selfWeight'] = selfWeight
     data['gravity'] = gravity
 
-    with open('./Data/Data.sav', 'wb') as f:
+    with open('./data/Data.sav', 'wb') as f:
         pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
 
 
@@ -188,7 +188,7 @@ def GenQuadMesh_2D(L, H, lc):
     data['Nodos'] = x.T
     data['Conex'] = connect.T
 
-    with open('./Data/Data.sav', 'wb') as f:
+    with open('./data/Data.sav', 'wb') as f:
         pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
 
 
