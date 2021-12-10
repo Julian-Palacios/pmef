@@ -895,4 +895,5 @@ def plot_model_mesh():
     plot_fem_mesh(nodes_x, nodes_y, elements)
 
     plt.axis('equal')
-    plt.savefig('E1_Viga_Quad4_Deformada.png')
+    plt.show()
+    # plt.savefig('E1_Viga_Quad4_Deformada.png')
