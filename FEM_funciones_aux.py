@@ -365,7 +365,7 @@ def fix_nodes_rec(dir, dist, gdl, lim):
             vector = np.hstack((X[aux], [[1, i, 0]] * len(aux[0])))
             dic_vector.update({i: vector})
 
-    vector = np.vstack((dic_vector.values()))
+    vector = np.vstack(tuple(dic_vector.values()))
 
     if 'BC_coord' in data.keys():
         data['BC_coord'] = np.vstack((data['BC_coord'], vector))
@@ -1084,7 +1084,7 @@ def plot_model_mesh():
 
     plt.axis('equal')
     plt.show()
-    plt.savefig('Mesh.png')
+    # plt.savefig('Mesh.png')
     plt.close()
 
 
@@ -1136,6 +1136,6 @@ def plot_model_deformada(dir, FS):
                  orientation='horizontal',
                  label='Deformación (m)')
     plt.axis('equal')
-    plt.savefig('Model_Deformada.png')
+    # plt.savefig('Model_Deformada.png')
     plt.show()
     plt.close()
