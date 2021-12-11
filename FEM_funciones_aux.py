@@ -19,6 +19,7 @@ import pickle
 import os
 
 from scipy.sparse import data
+from scipy.sparse.linalg import spsolve, eigsh
 
 # Unidades Base
 m = 1
@@ -862,7 +863,17 @@ def AssembleMatrix(MatrixType):
             cont = cont + 1
         # Se resetea la Matriz del Elemento
         A_e[:] = 0.0
-    return A
+
+    if MatrixType == "MatrizK":
+        data['K'] = A
+
+        with open('data/Data.sav', 'wb') as f:
+            pickle.dump(data, f)
+
+    elif MatrixType == "MasaConcentrada":
+        data['M'] = A
+        with open('data/Data.sav', 'wb') as f:
+            pickle.dump(data, f)
 
 
 def AssembleVector(MatrixType):
@@ -914,15 +925,20 @@ def AssembleVector(MatrixType):
         # print(dof,f_e)
         f[dof] = f[dof] + f_e
         f_e = 0.0
-    return f
+
+    data['f'] = f
+    with open('data/Data.sav', 'wb') as f:
+        pickle.dump(data, f)
 
 
-def ApplyBC(A, f):
+def ApplyBC():
     '''Esta función aplica las condiciones de borde especificadas
     '''
     data = open_data()
     elem_dof = data['elem_dof']
     BC_data = data['BC_data']
+    A = data['K']
+    f = data['f']
 
     for bc in BC_data:
         if int(bc[1]) == 0:  # Neumann
@@ -937,7 +953,23 @@ def ApplyBC(A, f):
             f[dof] = bc[3]
         else:
             print('Condición de Borde Desconocida')
-    return A, f
+
+    data['K'] = A
+    data['f'] = f
+    with open('data/Data.sav', 'wb') as f:
+        pickle.dump(data, f)
+
+
+def Analysis():
+    data = open_data()
+    K = data['K']
+    f = data['f']
+
+    u = spsolve(K.tocsr(), f)
+
+    data['u'] = u
+    with open('data/Data.sav', 'wb') as f:
+        pickle.dump(data, f)
 
 
 ########## Funciones Diversas ############
@@ -1047,19 +1079,16 @@ def plot_model_mesh():
     # elements = elements_quads
     elements = Conex
 
-    # convert all elements into triangles
-    elements_all_tris = quads_to_tris(elements_quads)
-
     # plot the finite element mesh
     plot_fem_mesh(nodes_x, nodes_y, elements)
 
     plt.axis('equal')
-    # plt.show()
+    plt.show()
     plt.savefig('Mesh.png')
     plt.close()
 
 
-def plot_model_deformada(u, dir, FS):
+def plot_model_deformada(dir, FS):
 
     ##
     import matplotlib.tri as tri
@@ -1068,9 +1097,11 @@ def plot_model_deformada(u, dir, FS):
     import matplotlib.colors as colors
     ##
     data = open_data()
+
     Nodos = data['Nodos'].T
     NC = data['NC']
     Conex = data['Conex'].T
+    u = data['u']
 
     X_Def, X_incr = Deformada(u, FS)
 
@@ -1106,3 +1137,5 @@ def plot_model_deformada(u, dir, FS):
                  label='Deformación (m)')
     plt.axis('equal')
     plt.savefig('Model_Deformada.png')
+    plt.show()
+    plt.close()
