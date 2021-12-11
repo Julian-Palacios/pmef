@@ -1131,7 +1131,7 @@ def plot_model_deformada(dir, FS):
                             vmax=max(nodal_values / FS))
 
     # Ocultar los valores de los ejes
-    # plt.axis('off')
+    plt.axis('off')
     plt.colorbar(cm.ScalarMappable(norm=norm, cmap="RdBu_r"),
                  orientation='horizontal',
                  label='Deformación (m)')
