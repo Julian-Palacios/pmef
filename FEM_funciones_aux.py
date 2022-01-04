@@ -7,10 +7,10 @@
 # para la clase CT5123 en TU Delft, Países Bajos
 ##
 
-# from _typeshed import Self
 import matplotlib.tri as tri
 import matplotlib.colors as colors
-import matplotlib.cm as cm
+import matplotlib.animation as animation
+
 import numpy as np
 from numpy.linalg import det, inv
 from scipy import sparse
@@ -38,53 +38,56 @@ g = 9.80665 * m / s**2
 
 
 def open_data():
-    with open('./data/Data.sav', 'rb') as f:
-        data = pickle.load(f)
+    data_file = open('./Data', 'rb')
+    data = pickle.load(data_file)
     return data
 
 
-def ProblemData(SpaceDim, pde):
-
+def init_model():
     try:
-        os.mkdir('data')
+        os.remove('Data')
     except:
         pass
+
+
+def ProblemData(SpaceDim=2, pde='Elasticity'):
 
     data = {}
     data['SpaceDim'] = SpaceDim
     data['pde'] = pde
 
-    with open('./data/Data.sav', 'wb') as f:
-        pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+    data_file = open('./Data', 'wb')
+    pickle.dump(data, data_file)
+    data_file.close()
 
 
-def ElementData(dof, nodes, noInt, type):
-
-    data = open_data()
-    # Agragar a Data los datos de los elementos
-    data['elem_dof'] = dof
-    data['elem_nodes'] = nodes
-    data['elem_noInt'] = noInt
-    data['elem_type'] = type
-
-    with open('./data/Data.sav', 'wb') as f:
-        pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
-
-
-def MassData(dof, nodes, noInt, type):
+def ElementData(elemDof=2,
+                elemNodes=4,
+                elemInt=4,
+                elemType="Quad4",
+                massInt=4,
+                massMat='lumped'):
 
     data = open_data()
-    # Agragar a Data los datos de los elementos
-    data['mass_dof'] = dof
-    data['mass_nodes'] = nodes
-    data['mass_noInt'] = noInt
-    data['mass_type'] = type
 
-    with open('./data/Data.sav', 'wb') as f:
-        pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+    data['elem_dof'] = elemDof
+    data['elem_nodes'] = elemNodes
+    data['elem_noInt'] = elemInt
+    data['elem_type'] = elemType
+    data['mass_noInt'] = massInt
+    data['mass_Mat'] = massMat
+
+    data_file = open('./Data', 'wb')
+    pickle.dump(data, data_file)
+    data_file.close()
 
 
-def ModelData(E, v, thickness, density, selfWeight, gravity):
+def ModelData(E=1,
+              v=0.25,
+              thickness=0.5,
+              density=2400 * kg / m**3,
+              selfWeight=0.0,
+              gravity=[0.0, -1.0, 0.0]):
 
     data = open_data()
     # Agragar a Data los datos del modelo
@@ -93,203 +96,220 @@ def ModelData(E, v, thickness, density, selfWeight, gravity):
     data['thickness'] = thickness
     data['density'] = density
     data['selfWeight'] = selfWeight
-    data['gravity'] = gravity
+    data['gravity'] = np.array(gravity)
 
-    with open('./data/Data.sav', 'wb') as f:
-        pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
-
-
-def GenQuadMesh(L, H, lc, fd="./INPUT"):
-    '''Función que crea el mesh de un elemento rectangular usando
-      elementos Quad (Crea un archivo .msh).
-    '''
-    import gmsh
-    gmsh.initialize()
-    gmsh.option.setNumber("General.Terminal", 1)
-    gmsh.model.add("demo")
-    ##
-    gmsh.model.geo.addPoint(0, 0, 0, lc, 1)
-    gmsh.model.geo.addPoint(L, 0, 0, lc, 2)
-    gmsh.model.geo.addPoint(0, H, 0, lc, 3)
-    gmsh.model.geo.addPoint(L, H, 0, lc, 4)
-    ##
-    gmsh.model.geo.addLine(1, 2, 1)
-    gmsh.model.geo.addLine(2, 4, 2)
-    gmsh.model.geo.addLine(4, 3, 3)
-    gmsh.model.geo.addLine(1, 3, 4)
-    ##
-    gmsh.model.geo.addCurveLoop([1, 2, 3, -4], 1)
-    gmsh.model.geo.addPlaneSurface([1], 1)
-    ##
-    gmsh.option.setNumber("Mesh.MshFileVersion", 2)
-    ##
-    gmsh.model.geo.mesh.setTransfiniteSurface(1)
-    gmsh.model.geo.mesh.setRecombine(2, 1)
-    ##
-    gmsh.model.addPhysicalGroup(2, [1], 1)
-    gmsh.model.setPhysicalName(2, 1, "quad")
-    ##
-    gmsh.model.geo.synchronize()
-    gmsh.model.mesh.generate(2)
-    gmsh.write(fd + "/rectangle_%4.2f.msh" % lc)
-    # gmsh.fltk.run() ##Abre el gmsh
-    gmsh.finalize()
-    return fd + "/rectangle_%4.2f.msh" % lc
+    data_file = open('./Data', 'wb')
+    pickle.dump(data, data_file)
+    data_file.close()
 
 
 def GenQuadMesh_2D(L, H, lc):
-    '''Función que crea el mesh de un elemento rectangular usando
-    códigos programados en Python
+    '''Crea la malla de un elemento rectangular con códigos programados en Python.
+
+    Create the mesh of a rectagular element with codes programmed in Python
+
+    L  : Longitud o base del elemento  en metros
+    H  : Altura del elemento en metros
+    lc : Número de elementos en la dirección más corta entre L o H.
+
+    L  : Element length or base in meters
+    H  : Element height in meters
+    lc : Number of elements in the direction of the smaller dimension between L or H.
     '''
+    # Lectura del archivo data
+    # Reading the data file
+
     data = open_data()
     SpaceDim = data['SpaceDim']
 
+    # Define la cantidad de elementos y sus dimensiones en ambas direcciones.
+    # Defines the number of elements and element dimensions in both directions.
+
     if np.min((L, H)) == L:
+
         nx = lc
         ms_x = L / nx
         ny = round(H / ms_x)
         ms_y = H / ny
+
     else:
+
         ny = lc
         ms_y = H / ny
         nx = round(L / ms_y)
         ms_x = L / nx
 
-    print("nx = %d, ny = %d" % (nx, ny))
+    # Imprime los resultados
+    # Print the results.
+
+    print('=' * 16 + 'Mesh' + '=' * 16)
+    print("nx = {}, dx = {:.2f}, ny = {}, dy = {:.2f}".format(
+        nx, ms_x, ny, ms_y))
+
+    # Se definen los nodos de la malla
+    # Mesh nodes are defined
+
+    noNodes = (nx + 1) * (ny + 1)
+    Nodes = np.zeros((noNodes, 2), dtype=np.float64)
 
     ni = 0
-    noNodes = (nx + 1) * (ny + 1)
-    x = np.zeros((noNodes, 3), dtype=np.float64)
 
-    for j in range(ny + 1):
-        for i in range(nx + 1):
-            x[ni] = (ms_x * i, ms_y * j, 0)
+    for i in range(ny + 1):
+        for j in range(nx + 1):
+
+            Nodes[ni] = (ms_x * j, ms_y * i)
+
             ni = ni + 1
 
-    noElements = nx * ny
-    connect = np.zeros((noElements, 4), dtype=np.int32)
+    # Se establecen las conexiones entre los nodos de la malla para definir los elementos finitos
+    # The connection bewteen the mesh nodes is set up to define the finite elements
+
+    noElem = nx * ny
+    connect = np.zeros((noElem, 4), dtype=np.int32)
 
     k = 0
+
     for i in range(0, ny):
         for j in range(0, nx):
-            connect[k, 0] = j + ((i) * (nx + 1))
-            connect[k, 1] = j + ((i) * (nx + 1)) + 1
+
+            connect[k, 0] = j + (i * (nx + 1))
+            connect[k, 1] = j + (i * (nx + 1)) + 1
             connect[k, 2] = j + ((i + 1) * (nx + 1)) + 1
             connect[k, 3] = j + ((i + 1) * (nx + 1))
+
             k = k + 1
 
-    # ------- Clean up and close -----------------------
-    # Delete coordinates
-    if (SpaceDim == 1):
-        x[:, 1:3] = 0.0
-    elif (SpaceDim == 2):
-        x = np.delete(x, 2, 1)
-
-    # class Mesh:
-    # 	NN = noNodes
-    # 	NC = noElements
-    # 	Nodos = x.T
-    # 	Conex = connect.T
+    # Se agrega los parámetros calculados al diccionario Data
+    # The parameters obtained are added to the Data dictionary
 
     data['NN'] = noNodes
-    data['NC'] = noElements
-    data['Nodos'] = x.T
-    data['Conex'] = connect.T
+    data['NC'] = noElem
+    data['Nodes'] = Nodes
+    data['Connect'] = connect
+    data['nx'] = nx
+    data['L'] = L
+    data['H'] = H
 
-    with open('./data/Data.sav', 'wb') as f:
-        pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+    data_file = open('./Data', 'wb')
+    pickle.dump(data, data_file)
+    data_file.close()
 
 
-def gmsh_read(msh_file, ProblemData, ElementData):
-    '''Función que retorna los nodos y conexiones al leer el archivo .msh
-      realizado por gmsh (función adaptada del código en matlab FEMCode).
+def GenBrickMesh_3D(L, B, H, lc):
+    '''Crea la malla de un elemento rectangular con códigos programados en Python.
+
+    Create the mesh of a rectagular element with codes programmed in Python
+
+    L  : Longitud o base del elemento  en metros
+    H  : Altura del elemento en metros
+    lc : Número de elementos en la dirección más corta entre L o H.
+
+    L  : Element length or base in meters
+    H  : Element height in meters
+    lc : Number of elements in the direction of the smaller dimension between L or H.
     '''
-    print('Leyendo archivo msh')
-    file_input = open(msh_file, 'rt')
-    # ------------- Test input file ----------------------
-    # Read 2 first lines and check if we have mesh format 2
-    mesh_format = file_input.readline()[:-1]
-    line = file_input.readline()
-    fmt = int(float(line.split()[0]))
-    if (mesh_format != '$MeshFormat' or fmt != 2):
-        print('The mesh format is NOT version 2!')
+    # Lectura del archivo data
+    # Reading the data file
 
-# -------------------- Nodes  --------------------------
-# Process file until we get the line with the number of nodes
-    buf = file_input.readline()[:-1]
-    while ('$Nodes' != buf):
-        buf = file_input.readline()[:-1]
-    noNodes = int(file_input.readline()[:-1])  # Extract number of nodes
-    # Initialise nodes matrix [x1, y1, z1 x2, y2, z2 .... xn, yn, zn]
-    x = np.zeros((noNodes, 3), dtype=np.float64)
-    for i in range(noNodes):  # Get nodal coordinates
-        buf = [float(y) for y in file_input.readline()[:-1].split()]
-        x[i] = buf[1:4]  # we throw away the node numbers!
+    data = open_data()
+    SpaceDim = data['SpaceDim']
 
-# ------------ Elements --------------------
-# Process file until we get the line with the number of elements
-    while ('$Elements' != buf):
-        buf = file_input.readline()[:-1]
-# Extract number of elements
-    noElements = int(file_input.readline()[:-1])
-    # Get first line of connectivity
-    buf = [int(y) for y in file_input.readline()[:-1].split()]
-    # Number of nodes per element
-    no_nodes_per_elem = len(buf) - (3 + buf[2])
-    tipo = buf[1]  # Get type of element
-    # Verify that we have the correct element
-    if (no_nodes_per_elem != ElementData.nodes):  # Check number of nodes
-        print(
-            'The number of nodes per element in the mesh differ from ElementData.nodes'
-        )
-# Check element type (gmsh 2.0 manual )
-    if (ElementData.type == 'Tri3'):
-        if (tipo != 2):
-            print('Element type is not Tri3')
-    elif (ElementData.type == 'Quad4'):
-        if (tipo != 3):
-            print('Element type is not Quad4')
-    elif (ElementData.type == 'Tri6'):
-        if (tipo != 9):
-            print('Element type is not Tri6')
-    elif (ElementData.type == 'Tet4'):
-        if (tipo != 4):
-            print('Element type is not Tet4')
-    else:  # Default error message
-        print('Element type %s is not supported', ElementData.type)
+    # Define la cantidad de elementos y sus dimensiones en ambas direcciones.
+    # Defines the number of elements and element dimensions in both directions.
 
-# --------- Initialise connecticity matrix and write first line ------------
-    connect = np.zeros((noElements, no_nodes_per_elem), dtype=np.int32)
-    connect[0, :] = buf[3 + buf[2]:len(buf)]
-    # Get element connectivity
-    # FIXME: check that the nodes on the elements are numbered correctly!
-    for i in range(1, noElements):
-        buf = [int(y) for y in file_input.readline()[:-1].split()]
-        # Only one type of elements is allowed in the mesh
-        if (tipo != buf[1]):
-            print(
-                'More than one type of elements is present in the mesh, did you save all elements?'
-            )
-        # throw away element number, type and arg list
-        connect[i, :] = buf[3 + buf[2]:len(buf)]
+    if np.min((L, B, H)) == L:
 
+        nx = lc
+        ms_x = L / nx
+        ny = round(B / ms_x)
+        ms_y = B / ny
+        nz = round(H / ms_x)
+        ms_z = H / nz
 
-# ------- Clean up and close -----------------------
-# Delete coordinates
-    if (ProblemData.SpaceDim == 1):
-        x[:, 1:3] = 0.0
-    elif (ProblemData.SpaceDim == 2):
-        x = np.delete(x, 2, 1)
-    file_input.close()  # Close file
+    elif np.min((L, B, H)) == B:
 
-    # ------- Add members to object  ---------------
-    class Mesh:
-        NN = noNodes
-        NC = noElements
-        Nodos = x.T
-        Conex = connect.T - 1
+        ny = lc
+        ms_y = B / ny
+        nx = round(L / ms_y)
+        ms_x = L / nx
+        nz = round(H / ms_y)
+        ms_z = H / nz
 
-    return Mesh
+    else:
+
+        nz = lc
+        ms_z = H / nz
+        ny = round(B / ms_z)
+        ms_y = B / ny
+        nx = round(L / ms_z)
+        ms_x = L / nx
+
+    # Imprime los resultados
+    # Print the results.
+
+    print('=' * 16 + 'Mesh' + '=' * 16)
+    print("nx = {}, dx = {:.2f}, ny = {}, dy = {:.2f}, nz = {}, dz = {:.2f}".
+          format(nx, ms_x, ny, ms_y, nz, ms_z))
+
+    # Se definen los nodos de la malla
+    # Mesh nodes are defined
+
+    noNodes = (nx + 1) * (ny + 1) * (nz + 1)
+    Nodes = np.zeros((noNodes, 3), dtype=np.float64)
+
+    ni = 0
+    for i in range(nz + 1):
+        for j in range(ny + 1):
+            for k in range(nx + 1):
+
+                Nodes[ni] = (ms_x * k, ms_y * j, ms_z * i)
+
+                ni = ni + 1
+
+    # Se establecen las conexiones entre los nodos de la malla para definir los elementos finitos
+    # The connection bewteen the mesh nodes is set up to define the finite elements
+
+    noElem = nx * ny * nz
+    connect = np.zeros((noElem, 8), dtype=np.int32)
+
+    cont = 0
+    for k in range(0, nz):
+        for i in range(0, ny):
+            for j in range(0, nx):
+
+                connect[cont,
+                        0] = j + (i * (nx + 1)) + (k * (nx + 1) * (ny + 1))
+                connect[cont,
+                        1] = j + (i * (nx + 1)) + (k * (nx + 1) * (ny + 1)) + 1
+                connect[cont, 2] = j + ((i + 1) * (nx + 1)) + ((k) * (nx + 1) *
+                                                               (ny + 1)) + 1
+                connect[cont, 3] = j + ((i + 1) * (nx + 1)) + ((k) * (nx + 1) *
+                                                               (ny + 1))
+                connect[cont, 4] = j + (i * (nx + 1)) + ((k + 1) * (nx + 1) *
+                                                         (ny + 1))
+                connect[cont, 5] = j + (i * (nx + 1)) + ((k + 1) * (nx + 1) *
+                                                         (ny + 1)) + 1
+                connect[cont,
+                        6] = j + ((i + 1) * (nx + 1)) + ((k + 1) * (nx + 1) *
+                                                         (ny + 1)) + 1
+                connect[cont,
+                        7] = j + ((i + 1) * (nx + 1)) + ((k + 1) * (nx + 1) *
+                                                         (ny + 1))
+
+                cont += 1
+
+    # Se agrega los parámetros calculados al diccionario Data
+    # The parameters obtained are added to the Data dictionary
+
+    data['NN'] = noNodes
+    data['NC'] = noElem
+    data['nz'] = nz
+    data['Nodes'] = Nodes
+    data['Connect'] = connect
+
+    data_file = open('./Data', 'wb')
+    pickle.dump(data, data_file)
+    data_file.close()
 
 
 def LinearMesh(L, N, x0=0):
@@ -305,329 +325,421 @@ def LinearMesh(L, N, x0=0):
     return nodos, conex
 
 
-def genBC_2D(lim=0.01):
-    ''' Función que aplica las condiciones de borde en un punto especificando
-        las coordenadas donde se encuentra. (Utiliza un radio de búsqueda)
+def DC_node(xy=(1, 2), dof=(1, 2), lim=0.001):
     '''
+    Retorna un arreglo con la información para definir las condiciones de  Dirichlet de un nodo
+    Return an array with information to define Dirichlet condition of a node
+
+    xy      : Posición del nodo 
+    gdl     : Grados de libertad que se restringirán
+    lim     : Tolerancia en metros
+
+    dir     : Node position
+    gld     : Degrees of freedom to restrict
+    lim     : tolerance in meters
+
+    '''
+    x = xy[0]
+    y = xy[1]
+
+    # Lee el archivo Data
+    # Reading Data file
 
     data = open_data()
-    X = data['Nodos'].T
-    BC_coord = data['BC_coord']
+    Nodes = data['Nodes']
 
-    NN, k = len(X), 0
-    BC_data = np.zeros((len(BC_coord), 4))
-    BC_data[:, 1:] = BC_coord[:, 2:]
-    for x, y in BC_coord[:, 0:2]:
-        for i in range(NN):
-            if i == 0:
-                er0, ind = ((X[i, 0] - x)**2 + (X[i, 1] - y)**2)**0.5, 0
-                continue
-            er = ((X[i, 0] - x)**2 + (X[i, 1] - y)**2)**0.5
-            if er < er0:
-                er0, ind = er, i
-                continue
-            ##
-        if er0 < lim:
-            BC_data[k, 0] = ind + 1
-            k = k + 1
-        else:
-            print(
-                "No se encuentra un punto cerca a (%s,%s) en un radio de %s" %
-                (x, y, lim))
-            k = k + 1
-
-    data['BC_data'] = BC_data
-
-    with open('data/Data.sav', 'wb') as f:
-        pickle.dump(data, f)
-
-
-def fix_nodes_rec(dir, dist, gdl, lim):
-    '''Función que retorna los nodos que se encuentran en una dirección
-    especificada.
-    '''
-
-    data = open_data()
-    X = data['Nodos'].T
+    # Crea el diccionario dic_vector
+    # dic_vector dictionary is created
 
     dic_vector = {}
+
+    for i in dof:
+
+        aux_1 = np.where(abs(Nodes[:, 0] - x) < lim)
+        aux_2 = np.where(abs(Nodes[:, 1] - y) < lim)
+        aux = np.intersect1d(aux_1, aux_2)
+
+        vector = np.hstack((aux[:, np.newaxis], [[1, i, 0]] * len(aux)))
+        dic_vector.update({i: vector})
+
+    # Se agrupan verticalmente los elementos array (dof=1, dof =2)
+    # Array elements area grouped vertically (dof=1, dof =2)
+
+    vector = np.vstack(tuple(dic_vector.values()))
+
+    if 'BC_data' in data.keys():
+
+        data['BC_data'] = np.unique(np.vstack((data['BC_data'], vector)),
+                                    axis=0)
+
+    else:
+
+        data['BC_data'] = np.unique(vector, axis=0)
+
+    # Se agrega los parámetros calculados al diccionario Data
+    # The calculate parameters are added to the Data dictionary
+
+    data_file = open('./Data', 'wb')
+    pickle.dump(data, data_file)
+    data_file.close()
+
+
+def DC_nodes(dir='x', dist=0, dof=[1, 2], lim=0.001):
+    '''
+    Retorna un arreglo con la información para definir las condiciones de  Dirichlet de un conjunto de nodos en la dirección definida
+    Return an array with information to define Dirichlet condition from a set of nodes in a direction defined
+
+    dir     : Dirección en la que se restringirán los nodos
+    dist    : Posición del eje de restricción (en metros)
+    gdl     : Grados de libertad que se restringirán
+    lim     : Tolerancia en metros
+
+    dir     : Direction in which nodes will be restricted
+    dist    : Position of the restriction axis (in meters)
+    gld     : Degrees of freedom to restrict
+    lim     : tolerance in meters
+
+    '''
+    # Lee el archivo Data
+    # Reading Data file
+
+    data = open_data()
+    Nodes = data['Nodes']
+
+    # Crea el diccionario dic_vector
+    # Creating dic_vector dictionary
+
+    dic_vector = {}
+
     if dir == 'x':
 
-        for i in gdl:
-            aux = np.where(abs(X[:, 1] - dist) < lim)
-            vector = np.hstack((X[aux], [[1, i, 0]] * len(aux[0])))
+        for i in dof:
+
+            aux = np.where(abs(Nodes[:, 1] - dist) < lim)
+            vector = np.hstack((aux[0][:,
+                                       np.newaxis], [[1, i, 0]] * len(aux[0])))
             dic_vector.update({i: vector})
 
     elif dir == 'y':
 
-        for i in gdl:
-            aux = np.where(abs(X[:, 0] - dist) < lim)
-            vector = np.hstack((X[aux], [[1, i, 0]] * len(aux[0])))
+        for i in dof:
+
+            aux = np.where(abs(Nodes[:, 0] - dist) < lim)
+            vector = np.hstack((aux[0][:,
+                                       np.newaxis], [[1, i, 0]] * len(aux[0])))
             dic_vector.update({i: vector})
 
-    vector = np.vstack(tuple(dic_vector.values()))
+    elif dir == 'yz':
 
-    if 'BC_coord' in data.keys():
-        data['BC_coord'] = np.vstack((data['BC_coord'], vector))
-    else:
-        data['BC_coord'] = vector
+        for i in dof:
+            aux = np.where(abs(Nodes[:, 0] - dist) < lim)
+            vector = np.hstack((aux[0][:,
+                                       np.newaxis], [[1, i, 0]] * len(aux[0])))
+            dic_vector.update({i: vector})
 
-    with open('data/Data.sav', 'wb') as f:
-        pickle.dump(data, f)
-
-
-def fix_node(x, y, gdl, lim):
-    '''Función que retorna los nodos que se encuentran en una dirección
-    especificada.
-    '''
-
-    data = open_data()
-    X = data['Nodos'].T
-    dic_vector = {}
-
-    for i in gdl:
-
-        aux_1 = np.where(abs(X[:, 0] - x) < lim)
-        aux_2 = np.where(abs(X[:, 1] - y) < lim)
-        aux = np.intersect1d(aux_1, aux_2)
-
-        vector = np.hstack((X[aux], [[1, i, 0]] * len(aux)))
-        dic_vector.update({i: vector})
+    # Se agrupan verticalmente los elementos array (dof=1, dof =2)
+    # Array elements are grouped vertically (dof=1, dof =2)
 
     vector = np.vstack(tuple(dic_vector.values()))
+    print(vector)
 
-    if 'BC_coord' in data.keys():
-        data['BC_coord'] = np.vstack((data['BC_coord'], vector))
+    if 'BC_data' in data.keys():
+
+        data['BC_data'] = np.unique(np.vstack((data['BC_data'], vector)),
+                                    axis=0)
+
     else:
-        data['BC_coord'] = vector
 
-    with open('data/Data.sav', 'wb') as f:
-        pickle.dump(data, f)
+        data['BC_data'] = np.unique(vector, axis=0)
+
+    # Se agrega los parámetros calculados al diccionario Data
+    # The calculate parameters are added to the Data dictionary
+
+    data_file = open('./Data', 'wb')
+    pickle.dump(data, data_file)
+    data_file.close()
 
 
-def force_dist_rec(dir, dist, force, gdl, lim):
-    '''Función que retorna los nodos que se encuentran en una dirección
-    especificada.
+def NC_node(xyz=(1, 1), force=0, dof=(1), lim=0.001):
+    '''
+    Retorna un arreglo con la información para definir las condiciones de  Neumann de un nodo
+    Return a array with information to define Neumann condition of a node
+
+    xy      : Posición del nodo 
+    gdl     : Grados de libertad que se restringirán
+    lim     : Tolerancia en metros
+
+    dir     : Node position
+    gld     : Degrees of freedom to restrict
+    lim     : tolerance in meters
+
     '''
 
+    # Lee el archivo Data
+    # Reading Data file
+
     data = open_data()
-    X = data['Nodos'].T
+    Nodes = data['Nodes']
+    SpaceDim = data['SpaceDim']
+
+    # Crea el diccionario dic_vector
+    # dic_vector dictionary is created
 
     dic_vector = {}
+
+    if SpaceDim == 2:
+        x = xyz[0]
+        y = xyz[1]
+
+        for i in dof:
+
+            aux_1 = np.where(abs(Nodes[:, 0] - x) < lim)
+            aux_2 = np.where(abs(Nodes[:, 1] - y) < lim)
+
+            aux = np.intersect1d(aux_1, aux_2)
+
+            vector = np.hstack((aux[:,
+                                    np.newaxis], [[0, i, force]] * len(aux)))
+
+            dic_vector.update({i: vector})
+
+    elif SpaceDim == 3:
+
+        from functools import reduce
+
+        x = xyz[0]
+        y = xyz[1]
+        z = xyz[2]
+
+        for i in dof:
+
+            aux_1 = np.where(abs(Nodes[:, 0] - x) < lim)
+            aux_2 = np.where(abs(Nodes[:, 1] - y) < lim)
+            aux_3 = np.where(abs(Nodes[:, 2] - z) < lim)
+
+            aux = reduce(np.intersect1d, (aux_1, aux_2, aux_3))
+
+            vector = np.hstack((aux[:,
+                                    np.newaxis], [[0, i, force]] * len(aux)))
+
+            dic_vector.update({i: vector})
+
+    # Se agrupan verticalmente los elementos array (dof=1, dof =2, dof =3)
+    # Array elements area grouped vertically (dof=1, dof =2, dof =3)
+
+    vector = np.vstack(tuple(dic_vector.values()))
+    print(vector)
+    if 'BC_data' in data.keys():
+        data['BC_data'] = np.unique(np.vstack((data['BC_data'], vector)),
+                                    axis=0)
+    else:
+        data['BC_data'] = np.unique(vector, axis=0)
+
+    # Se agrega los parámetros calculados al diccionario Data
+    # The calculate parameters are added to the Data dictionary
+
+    data_file = open('./Data', 'wb')
+    pickle.dump(data, data_file)
+    data_file.close()
+
+
+def NC_nodes(dir='x', dist=0, force=1000, dof=(1, 2), lim=0.001):
+    '''
+    Retorna un arreglo con la información para definir las condiciones de  Neumann de un conjunto de nodos en la dirección definida
+    Return a array with information to define Neumann condition of a set of nodes in a defined direction
+
+    dir     : Dirección en la que se restringirán los nodos
+    dist    : Posición del eje de restricción (en metros)
+    gdl     : Grados de libertad que se restringirán
+    lim     : Tolerancia en metros
+
+    dir     : Direction in which nodes will be restricted
+    dist    : Position of the restriction axis (in meters)
+    gld     : Degrees of freedom to restrict
+    lim     : tolerance in meters
+
+    '''
+
+    # Lee el archivo Data
+    # Reading Data file
+
+    data = open_data()
+    Nodes = data['Nodes']
+
+    # Crea el diccionario dic_vector
+    # dic_vector dictionary is created
+
+    dic_vector = {}
+
     if dir == 'x':
 
-        for i in gdl:
-            aux = np.where(abs(X[:, 1] - dist) < lim)
-            vector = np.hstack((X[aux], [[0, i, force]] * len(aux[0])))
+        for i in dof:
+            aux = np.where(abs(Nodes[:, 1] - dist) < lim)
+            vector = np.hstack(
+                (aux[0][:, np.newaxis], [[0, i, force]] * len(aux[0])))
             dic_vector.update({i: vector})
 
     elif dir == 'y':
 
-        for i in gdl:
-            aux = np.where(abs(X[:, 0] - dist) < lim)
-            vector = np.hstack((X[aux], [[0, i, force]] * len(aux[0])))
+        for i in dof:
+            aux = np.where(abs(Nodes[:, 0] - dist) < lim)
+            vector = np.hstack(
+                (aux[0][:, np.newaxis], [[0, i, force]] * len(aux[0])))
             dic_vector.update({i: vector})
 
-    vector = np.vstack(tuple(dic_vector.values()))
+    elif dir == 'yz':
 
-    if 'BC_coord' in data.keys():
-        data['BC_coord'] = np.vstack((data['BC_coord'], vector))
-    else:
-        data['BC_coord'] = vector
+        for i in dof:
+            aux = np.where(abs(Nodes[:, 0] - dist) < lim)
+            vector = np.hstack(
+                (aux[0][:, np.newaxis], [[0, i, force]] * len(aux[0])))
+            dic_vector.update({i: vector})
 
-    with open('data/Data.sav', 'wb') as f:
-        pickle.dump(data, f)
-
-
-def force_node(x, y, force, gdl, lim):
-    '''Función que retorna los nodos que se encuentran en una dirección
-    especificada.
-    '''
-
-    data = open_data()
-    X = data['Nodos'].T
-    dic_vector = {}
-
-    for i in gdl:
-        print
-        aux_1 = np.where(abs(X[:, 0] - x) < lim)
-        aux_2 = np.where(abs(X[:, 1] - y) < lim)
-
-        aux = np.intersect1d(aux_1, aux_2)
-
-        vector = np.hstack((X[aux], [[0, i, force]] * len(aux)))
-        dic_vector.update({i: vector})
+    # Se agrupan verticalmente los elementos array (dof=1, dof =2)
+    # Array elements area grouped vertically (dof=1, dof =2)
 
     vector = np.vstack(tuple(dic_vector.values()))
 
-    if 'BC_coord' in data.keys():
-        data['BC_coord'] = np.vstack((data['BC_coord'], vector))
+    if 'BC_data' in data.keys():
+        data['BC_data'] = np.unique(np.vstack((data['BC_data'], vector)),
+                                    axis=0)
     else:
-        data['BC_coord'] = vector
+        data['BC_data'] = np.unique(vector, axis=0)
 
-    with open('data/Data.sav', 'wb') as f:
-        pickle.dump(data, f)
+    # Se agrega los parámetros calculados al diccionario Data
+    # The calculate parameters are added to the Data dictionary
+
+    data_file = open('./Data', 'wb')
+    pickle.dump(data, data_file)
+    data_file.close()
 
 
-def CuadraturaGauss(puntos, dim):
+def ShapeFunction(X, gp, elem_type):
     '''
-    Esta función define los puntos de integración según la
-    cuadratura de Gauss
-    ---------------
-    Input:
-       puntos:    El número de puntos de integración de Gauss
-       dim:         Dimensión del elemento finito
-    Output:
-       gp:           Arreglo cuya primera fila son los pesos y las
-                      demás las pocisiones respectivas
-    '''
-    if dim == 1:
-        if puntos == 1:  # Integración de Gauss de 1 punto en 1D
-            gp = np.zeros((2, 1))
-            gp[0], gp[1] = 2.0, 0.0
-
-        elif puntos == 2:  # Integración de Gauss de 2 puntos en 1D
-            gp = np.zeros((2, 2))
-            gp[0, 0], gp[1, 0] = 1.0, -1 / 3**0.5
-            gp[0, 1], gp[1, 1] = 1.0, 1 / 3**0.5
-
-        elif puntos == 4:
-            gp = np.zeros((2, 4))
-            a, b = 0.33998104358484, 0.8611363115941
-            wa, wb = 0.65214515486256, 0.34785484513744
-            gp[0, 0], gp[1, 0] = wb, -b
-            gp[0, 1], gp[1, 1] = wa, -a
-            gp[0, 2], gp[1, 2] = wa, a
-            gp[0, 3], gp[1, 3] = wb, b
-        else:
-            print("Debes programarpar %s puntos aún" % puntos)
-    ##
-    elif dim == 2:
-        if puntos == 1:  # Integración de Gauss de 1 punto para Tri3
-            gp = np.zeros((3, 1))
-            gp[0] = 1.0 * 0.5  # peso*porcentaje del Jacobiano
-            gp[1], gp[2] = 1.0 / 3.0, 1.0 / 3.0  # Coordenadas de Integración
-            #
-        elif puntos == 4:  # Integración de Gauss de 2x2 en 2D para Quad
-            gp = np.zeros((3, 4))
-            gp[0, :] = 1.0
-            gp[1, 0], gp[1, 1], gp[1, 2], gp[1, 3] = -1.0 / \
-                3**0.5, 1.0/3**0.5, 1.0/3**0.5, -1.0/3**0.5
-            gp[2, 0], gp[2, 1], gp[2, 2], gp[2, 3] = -1.0 / \
-                3**0.5, -1.0/3**0.5, 1.0/3**0.5, 1.0/3**0.5
-        else:
-            print("Debes programarpar %s puntos aún" % puntos)
-    ##
-    else:
-        print("Debes programar para %sD aún" % dim)
-    return gp.T
-
-
-def FunciónForma(X, gp, tipo):
-    '''
-    Esta función define funciones de forma y sus derivadas
-    en coordenadas naturales para un elemento finito de
-    coordenadas X, N(X)=N(xi),dN(X)=dN(xi)*J-1
+    Define funciones de forma y sus derivadas en coordenadas naturales para un elemento finito de coordenadas X, N(X)=N(xi),dN(X)=dN(xi)*J-1
+    Defines Shape functions and their derivatives in natural coordinates for a finite element of coordinates X, N(X) = N(xi), dN(X) = dN(xi)*J-1
     -----------------
     Input:
-       X:             Matriz de coordenadas del elemento
-       gp:            Arreglo que contiene los parametros de la
-                        cuadratura de Gauss
-       tipo:          Tipo de elemento finito
+        X       : Matriz de coordenadas del elemento
+        X       : Element coordinate matrix
+        gp      : Arreglo que contiene los parametros de la cuadratura de Gauss
+        gp      : Array containing Gauss Quadrature parameters
+        type    : Tipo de elemento finito
+        type    : Finite element type
     Output:
-       N:             Matriz de funciones de Forma
-       dN:           Matriz de la derivada de las funciones de Forma
-       ddN:         Matriz de la segunda derivada de las funciones de Forma
-       j:               Jacobiano para realizar la integración usando el mapeo isoparampetrico
-    '''
-    if tipo == 'Bar1':
-        N, dN, J = np.zeros((2, 1)), np.zeros((2, 1)), np.zeros((1, 1))
-        #
-        xi = gp[1]
-        N[0], N[1] = -xi / 2 + 0.5, xi / 2 + 0.5
-        dN[0, 0], dN[1, 0] = -1 / 2, 1 / 2
-        #
-    elif tipo == 'BarB':
-        N, dN, ddN, J = np.zeros((4, 1)), np.zeros((4, 1)), np.zeros(
-            (4, 1)), np.zeros((1, 1))
-        #
-        xi = gp[1]
+        N       : Matriz de funciones de Forma
+        N       : Matrix of Shape Functions
+        dN      : Matriz de la derivada de las funciones de Forma
+        dN      : Matrix of the derivative of the Shape Function
+        ddN     : Matriz de la segunda derivada de las funciones de Forma
+        ddN     : Matrix of the second derivative of the Shape Function
+        j       : Determinante del Jacobiano para realizar la integración usando el mapeo isoparamétrico
+        j       : Jacobian determinant to integrate using isoparametric mapping
+        '''
+    if elem_type == 'Bar1':
+
+        N, dN, J = np.zeros((1, 2)), np.zeros((1, 2)), np.zeros((1, 1))
+
+        ξ = gp[1]
+        N[0, 0], N[0, 1] = -ξ / 2 + 0.5, ξ / 2 + 0.5
+        dN[0, 0], dN[0, 1] = -1 / 2, 1 / 2
+
+    elif elem_type == 'BarB':
+        N, dN, ddN = np.zeros((1, 4)), np.zeros((1, 4)), np.zeros((1, 4))
+
+        ξ = gp[1]
         le = X[1] - X[0]
-        N[0] = le * (1 - xi)**2 * (1 + xi) / 8
-        N[1] = (1 - xi)**2 * (2 + xi) / 4
-        N[2] = le * (1 + xi)**2 * (-1 + xi) / 8
-        N[3] = (1 + xi)**2 * (2 - xi) / 4
-        dN[0] = -(1 - xi) * (3 * xi + 1) / 4
-        dN[1] = -3 * (1 - xi) * (1 + xi) / (2 * le)
-        dN[2] = (1 + xi) * (3 * xi - 1) / 4
-        dN[3] = 3 * (1 - xi) * (1 + xi) / (2 * le)
-        ddN[0] = (3 * xi - 1) / le
-        ddN[1] = 6 * xi / (le**2)
-        ddN[2] = (3 * xi + 1) / le
-        ddN[3] = -6 * xi / (le**2)
+        N[0, 0] = le * (1 - ξ)**2 * (1 + ξ) / 8
+        N[0, 1] = (1 - ξ)**2 * (2 + ξ) / 4
+        N[0, 2] = le * (1 + ξ)**2 * (-1 + ξ) / 8
+        N[0, 3] = (1 + ξ)**2 * (2 - ξ) / 4
+        dN[0, 0] = -(1 - ξ) * (3 * ξ + 1) / 4
+        dN[0, 1] = -3 * (1 - ξ) * (1 + ξ) / (2 * le)
+        dN[0, 2] = (1 + ξ) * (3 * ξ - 1) / 4
+        dN[0, 3] = 3 * (1 - ξ) * (1 + ξ) / (2 * le)
+        ddN[0, 0] = (3 * ξ - 1) / le
+        ddN[0, 1] = 6 * ξ / (le**2)
+        ddN[0, 2] = (3 * ξ + 1) / le
+        ddN[0, 3] = -6 * ξ / (le**2)
         j = le / 2
-        return N, dN, ddN, j
-        #
-    elif tipo == 'Tri3':
-        N, dN, J = np.zeros((3, 1)), np.zeros((3, 2)), np.zeros((2, 2))
-        #
-        xi, eta = gp[1], gp[2]
-        N[0], N[1], N[2] = xi, eta, 1.0 - xi - eta
-        dN[0, 0], dN[1, 0], dN[2, 0] = 1.0, 0.0, -1.0  # dN/d(xi)
-        dN[0, 1], dN[1, 1], dN[2, 1] = 0.0, 1.0, -1.0  # dN/d(eta)
-        #
-    elif tipo == 'Quad4':
-        N, dN, J = np.zeros((4, 1)), np.zeros((4, 2)), np.zeros((2, 2))
-        a = np.array([-1.0, 1.0, 1.0, -1.0])  # coordenadas x de los nodos
+
+    elif elem_type == 'Quad4':
+
+        N, dN, J = np.zeros((1, 4)), np.zeros((2, 4)), np.zeros((2, 2))
+        a = np.array(
+            [-1.0, 1.0, 1.0, -1.0]
+        )  # coordenadas x de los nodos   ########################################## Verificar nombre x o ξ
         b = np.array([-1.0, -1.0, 1.0, 1.0])  # coordenadas y de los nodos
-        xi = gp[1]
-        eta = gp[2]
-        ##
-        N = 0.25 * (1.0 + a[:] * xi + b[:] * eta + a[:] * b[:] * xi * eta)
-        dN[:, 0] = 0.25 * (a[:] + a[:] * b[:] * eta)
-        dN[:, 1] = 0.25 * (b[:] + a[:] * b[:] * xi)
-        #
+
+        ξ = gp[1]
+        η = gp[2]
+
+        N = 0.25 * (1.0 + a[:] * ξ) * (1.0 + b[:] * η)  # 0.25(1+ξiξ)(1+ηiη)
+
+        dN[0] = 0.25 * a[:] * (1 + b[:] * η)  # dN,ξ = 0.25ξi(1+ηiη)
+        dN[1] = 0.25 * b[:] * (1 + a[:] * ξ)  # dN,η = 0.25ηi(1+ξiξ)
+
+    elif elem_type == 'Brick8':
+
+        N, dN, J = np.zeros((3, 8)), np.zeros((3, 8)), np.zeros((3, 3))
+        a = np.array([-1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0, -1.0])
+        b = np.array([-1.0, -1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0])
+        c = np.array([-1.0, -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0])
+
+        ξ = gp[1]
+        η = gp[2]
+        ζ = gp[3]
+
+        N = 0.125 * (1.0 + a[:] * ξ) * (1.0 + b[:] * η) * (1.0 + c[:] * ζ)
+
+        dN[0] = 0.125 * a[:] * (1 + b[:] * η) * (1.0 + c[:] * ζ)
+        dN[1] = 0.125 * b[:] * (1 + a[:] * ξ) * (1.0 + c[:] * ζ)
+        dN[2] = 0.125 * c[:] * (1 + a[:] * ξ) * (1.0 + b[:] * η)
+
     else:
-        print("Debes programar para el tipo %s aún" % tipo)
-    # Calculamos la matriz jacobiana y su determinante
-    J = X @ dN
-    ##
-    if len(J) > 1:
-        j = det(J)
-        dN = dN @ inv(J)
-    else:
-        j = J[0]
-        dN = dN / j
-    if (j < 0):
+
+        print("Debes programar para el tipo %s aún" % elem_type)
+
+    # Calcula la matriz Jacobiana y su determinante
+    # Calculates Jacobian matriz and its determinant
+
+    try:
+        j
+    except NameError:
+        J = dN @ X
+        if len(J) > 1:
+            j = det(J)
+            dN = inv(J) @ dN
+        else:
+            j = J[0]
+            dN = dN / j
+    if j < 0:
         print("Cuidado: El jacobiano es negativo!")
         # print(X,'\n',dN,'\n',J,'\n',j)
-    ddN = 0.0  # Retorna 0.0 cuando no es Bernoulli
+    if elem_type != 'BarB':
+        ddN = 0.0  # Retorna una matriz de ceros cuando no es Bernoulli
+    #
     return N, dN, ddN, j
-
-    # Ejemplo de aplicacion de las funciones de forma para Tri3
-    # X=Mesh.Nodos[:,Mesh.Conex[:,0]]#np.array([[3,2],[8,7],[1,12]]).T
-    # gp=CuadraturaGauss(1,2)
-    # [N,dN,ddN,j]=FunciónForma(X,gp.T,tipo='Tri3')
 
 
 def Bernoulli(A, x, N, dN, ddN, ProblemData, ElementData, ModelData, dX, tipo):
     '''Función que retorna la matriz de un EF evaluado en un Punto de Gauss
     '''
-    n = ElementData.nodes
-    m = ElementData.dof
-    EI = ModelData.EI
-    Area = ModelData.Area
+    n = elem_nodes
+    m = elem_dof
+    EI = EI
+    Area = Area
     ##
     if tipo == 'MatrizK':
         A = EI * ddN @ ddN.T
         A = A * dX
 
     elif tipo == 'MasaConsistente':
-        rho = ModelData.density
+        rho = density
         A = rho * N @ N.T * dX * Area
         ##
     elif tipo == 'MasaConcentrada':
-        rho = ModelData.density
+        rho = density
         B = rho * N @ N.T * dX * Area
         ##
         one = np.zeros(m * n)
@@ -643,7 +755,7 @@ def Bernoulli(A, x, N, dN, ddN, ProblemData, ElementData, ModelData, dX, tipo):
         N_v = np.zeros((m * n, 1))
         N_v = N
         A = np.zeros((m * n, 1))
-        f = ModelData.fy
+        f = fy
         A = N_v.T * f * dX
         ##
     else:
@@ -655,14 +767,14 @@ def Timoshenko(A, x, N, dN, ddN, ProblemData, ElementData, ModelData, dX,
                tipo):
     '''Función que retorna la matriz de un EF evaluado en un Punto de Gauss
     '''
-    n = ElementData.nodes
-    m = ElementData.dof
-    EI = ModelData.EI
-    GAs = ModelData.GAs
-    Area = ModelData.Area
+    n = elem_nodes
+    m = elem_dof
+    EI = EI
+    GAs = GAs
+    Area = Area
     ##
     if tipo == 'MatrizK':
-        if (ProblemData.SpaceDim == 1):
+        if (SpaceDim == 1):
             # Formando N para theta
             N_theta = np.zeros((1, m * n))
             N_theta[0, 0::m] = N[:, 0].T
@@ -676,9 +788,9 @@ def Timoshenko(A, x, N, dN, ddN, ProblemData, ElementData, ModelData, dX,
             B_v = np.zeros((1, m * n))
             B_v[0, 1::m] = dN[:, 0].T
             ##
-        elif (ProblemData.SpaceDim == 2):
+        elif (SpaceDim == 2):
             print('Solo es válido para 1D')
-        elif (ProblemData.SpaceDim == 3):
+        elif (SpaceDim == 3):
             print('Solo es válido para 1D')
         ##
         # Calculando Matriz
@@ -687,20 +799,20 @@ def Timoshenko(A, x, N, dN, ddN, ProblemData, ElementData, ModelData, dX,
         A = A * dX
     ##
     elif tipo == 'MasaConsistente':
-        rho = ModelData.density
+        rho = density
         nulo = np.array([0])
         N = np.array([nulo, N[0], nulo, N[1]])
         A = rho * N @ N.T * dX * Area
-        # Artificio para no obetener una Matriz singular
+        # Artificio para no obtener una Matriz singular
         A[0, 0] = A[0, 0] + 0.01 * A[1, 1]
         A[2, 2] = A[2, 2] + 0.01 * A[3, 3]
     ##
     elif tipo == 'MasaConcentrada':
-        rho = ModelData.density
+        rho = density
         nulo = np.array([0])
         N = np.array([nulo, N[0], nulo, N[1]])
         B = rho * N @ N.T * dX * Area
-        # Artificio para no obetener una Matriz singular
+        # Artificio para no obtener una Matriz singular
         B[0, 0] = B[0, 0] + 0.01 * B[1, 1]
         B[2, 2] = B[2, 2] + 0.01 * B[3, 3]
         ##
@@ -720,7 +832,7 @@ def Timoshenko(A, x, N, dN, ddN, ProblemData, ElementData, ModelData, dX,
         N_v = np.zeros((1, m * n))
         N_v[0, 1::m] = N[:, 0].T
         #
-        f = ModelData.fy
+        f = f
         A = N_v * f * dX
 
     else:
@@ -728,8 +840,109 @@ def Timoshenko(A, x, N, dN, ddN, ProblemData, ElementData, ModelData, dX,
     return A
 
 
-def Elasticidad(A, X, N, dN, dNN, dX, tipo):
-    '''Función que retorna la matriz de un EF evaluado en un Punto de Gauss
+def GaussQuadrature(point, dim):
+    '''
+    Define los puntos de integración según la cuadratura de Gauss
+    Defines the Integration Points according to the Gauss Quadrature
+
+    ---------------
+    Input:
+            point   : El número de puntos de integración de Gauss
+            point   : Number of Gauss integration points
+            dim     : Dimensión del elemento finito
+            dim     : Finite element dimension
+    Output:
+            gp      : Arreglo cuya primera fila son los pesos y las demás las posiciones respectivas
+            gp      : Array whose first row are the weights and the others the respective positions                  
+    '''
+    if dim == 1:
+
+        if point == 1:  # Number of integration points = 1 Dimension = 1D
+
+            gp = np.zeros((2, 1))
+            gp[0], gp[1] = 2.0, 0.0
+
+        elif point == 2:  # Number of integration points = 2 Dimension = 1D
+
+            a = 1.0 / 3**0.5
+            gp = np.zeros((2, 2))
+            gp[0, :] = 1.0
+            gp[1, 0], gp[1, 1] = -a, a
+
+        elif point == 4:  # Number of integration points = 4 Dimension = 1D
+
+            gp = np.zeros((2, 4))
+            a, b = 0.33998104358484, 0.8611363115941
+            wa, wb = 0.65214515486256, 0.34785484513744
+            gp[0, 0], gp[0, 1], gp[0, 2], gp[0, 3] = wb, wa, wa, wb
+            gp[1, 0], gp[1, 1], gp[1, 2], gp[1, 3] = -b, -a, a, b
+
+        else:
+
+            print("Debes programar para %s puntos aún." % point)
+
+    elif dim == 2:
+
+        if point == 4:  # Number of integration points = 4 Quad4
+
+            a = 1.0 / 3**0.5
+
+            gp = np.zeros((3, 4))
+
+            gp[0, :] = 1.0  # Weight
+            gp[1, 0], gp[1, 1], gp[1, 2], gp[1,
+                                             3] = -a, a, a, -a  # Position in ξ
+            gp[2, 0], gp[2, 1], gp[2, 2], gp[2,
+                                             3] = -a, -a, a, a  # Position in η
+    elif dim == 3:
+
+        if point == 4:
+            a = 1.0 / 3**0.5
+
+            gp = np.zeros((4, 8))
+            gp[0, :] = 1.0
+            gp[1, 0], gp[1, 1], gp[1, 2], gp[1, 3], gp[1, 4], gp[1, 5], gp[
+                1, 6], gp[1, 7] = -a, a, a, -a, -a, a, a, -a
+            gp[2, 0], gp[2, 1], gp[2, 2], gp[2, 3], gp[2, 4], gp[2, 5], gp[
+                2, 6], gp[2, 7] = -a, -a, a, a, -a, -a, a, a
+            gp[3, 0], gp[3, 1], gp[3, 2], gp[3, 3], gp[3, 4], gp[3, 5], gp[
+                3, 6], gp[3, 7] = -a, -a, -a, -a, a, a, a, a
+
+        else:
+
+            print("Debes programar para %s puntos aún" % point)
+
+    else:
+
+        print("Debes programar para %sD aún" % dim)
+
+    return gp.T
+
+
+def Elasticity(A, X, N, dN, dNN, dX, matrix_type):
+    '''
+    Retorna la matriz de un EF evaluado en un Punto de Gauss
+    Return the matrix of the EF evaluated at a Gauss Point
+
+    Input:
+
+        X               : Arreglo que contiene las coordenadas del EF.
+        X               : Array containing the coordinates of the EF.
+        N               : Arreglo que contiene las funciones de forma.
+        N               : Array containing the Shape Functions
+        dN              : Arreglo que contiene las derivadas parciales de las funciones de forma.
+        dN              : Array containing the partial derivate of the Shape functions
+        ddN             : Arreglo que contiene las segundas derivadas parciales de las funciones de forma.
+        ddN             : Array containing the second partial derivates of the Shape function 
+        dX              :   
+        matriz_type     : Texto que indica que arreglo se quiere obtener. Ejem: MatrizK, VectorF, MasaConsistente, MasaConcentrada
+        matriz_type     : Texto que indica que arreglo se quiere obtener. Ejem: MatrizK, VectorF, MasaConsistente, MasaConcentrada
+
+        
+    Output:
+
+        A       : Matriz de elemento finito
+        A       : Finite element matrix
     '''
 
     data = open_data()
@@ -743,78 +956,170 @@ def Elasticidad(A, X, N, dN, dNN, dX, tipo):
     selfweight = data['selfWeight']
     gravity = data['gravity']
 
-    if tipo == 'MatrizK':
+    if matrix_type == 'MatrixK':
 
-        E, v = data['E'], data['v']  # Estado plano de esfuerzos
-        # E,v = E/(1.0-v*2),v/(1-v)## Estado plano de deformaciones
+        E, v = data['E'], data['v']
+        E, v = E, v  # Estado plano de esfuerzos Flat state of stress
+        # E,v = E/(1.0-v*2),v/(1-v)# Estado plano de deformaciones Flat state of deformations
+
         if SpaceDim == 2:
+
             # Formando Matriz D
+            # Forming Matriz D
+
             D = np.zeros((3, 3))
-            D[0, 0], D[1, 1] = 1.0, 1.0
-            D[0, 1], D[1, 0] = v, v
+
+            D[0, 0], D[1, 1], D[0, 1], D[1, 0] = 1.0, 1.0, v, v
+
             D[2, 2] = 0.5 * (1.0 - v)
+
             D = E * D / (1 - v**2)
-            # print("D=",D)
+
             # Formando Matriz B
+            # Forming Matrix B
+
             B = np.zeros((3, m * n))
+
             for i in range(m):
-                B[i, i::m] = dN[:, i]
-            B[2, 0::m] = dN[:, 1]
-            B[2, 1::m] = dN[:, 0]
+
+                B[i, i::m] = dN[i]
+
+            B[2, 0::m] = dN[1]
+            B[2, 1::m] = dN[0]
+
+        elif SpaceDim == 3:
+
+            # Formando Matriz D
+            # Forming Matriz D
+
+            D = np.zeros((6, 6))
+            λ = E * v / ((1.0 + v) * (1.0 - 2.0 * v))
+            μ = E / (2.0 * (1.0 + v))
+
+            D[0, 0] = D[1, 1] = D[2, 2] = μ + 2 * λ
+            D[3, 3] = D[4, 4] = D[5, 5] = μ
+            D[0, 1] = D[1, 0] = D[0, 2] = D[2, 0] = D[1, 2] = D[2, 1] = λ
+
+            # Formando Matriz B
+            # Forming Matrix B
+
+            B = np.zeros((6, m * n))
+
+            for i in range(m):
+
+                B[i, i::m] = dN[i]
+
+            B[2, 0::m] = dN[1]
+            B[2, 1::m] = dN[0]
+            B[3, 1::m] = dN[2]
+            B[3, 2::m] = dN[1]
+            B[4, 0::m] = dN[2]
+            B[4, 2::m] = dN[0]
+
         else:
-            print("Debes programar para %sD aún" % dim)
-        #
+            print("Debes programar para %sD aún" % SpaceDim)
+
         A = B.T @ D @ B * dX * t
 
-    elif tipo == 'MasaConsistente':
+    elif matrix_type == 'ConsistentMass':
+
         Nmat = np.zeros((m, m * n))
+
         rho = density
+
         for i in range(m):
-            Nmat[i, i::m] = N[:].T
-        #####
+
+            Nmat[i, i::m] = N[:]
+
         A = rho * Nmat.T @ Nmat * dX * t
 
-    elif tipo == 'MasaConcentrada':
+    elif matrix_type == 'ConcentratedMass':
+
         Nmat = np.zeros((m, m * n))
+
         rho = density
         for i in range(m):
-            Nmat[i, i::m] = N[:].T
-        ####
+
+            Nmat[i, i::m] = N[:]
+
         B = rho * Nmat.T @ Nmat * dX * t
-        one = np.zeros(m * n)
-        one[:] = 1.0
+
+        one = np.zeros(m * n) + 1.0
+
         B = B @ one
+
         A = np.zeros((m * n, m * n))
-        # Concentrando Masas
+
         for i in range(m * n):
+
             A[i, i] = B[i]
 
-    elif tipo == 'VectorF':
-        # Formando Matriz F
+    elif matrix_type == 'VectorF':
+
         Nmat = np.zeros((m, m * n))
+
         for i in range(m):
+
             Nmat[i, i::m] = N[:].T
-        f = selfweight * gravity[0:m]
-        ##
-        A = Nmat.T @ f * dX * t
+
+            f = selfweight * gravity[0:m]
+
+            A = Nmat.T @ f * dX * t
+
     else:
-        print("Debes programar para el tipo %s aún" % tipo)
+
+        print("Debes programar para el tipo %s aún" % matrix_type)
+
     return A
 
 
 def DofMap(DofNode, connect, NodesElement):
-    '''Función que mapea los grados de libertad correspondientes a un EF
+    '''
+    Función que mapea los grados de libertad correspondientes a un EF
+
+    Input:
+
+            DofNode     : Cantidad de grados de libertad por nodo
+            DofNode     : Amount of degree of freedom per node
+            connect     : Nodos del Elemento Finito
+            connect     : Finite element nodes
+            NodesElement: Cantidad de nodos del Elemento Finito
+            NodesElement: Amount of nodes of the Finite Element
+            
+    Output:
+
+            dof         : Lista que contiene los grados de libertad del EF en el sistema global.
+            dof:        : List that containing the degrees of freedom of the EF in the global system.
+
     '''
     dof = []
+
     for i in range(NodesElement):
+
         for j in range(DofNode):
-            dof.append(DofNode * (connect[i]) + j)
+
+            dof.append(DofNode * connect[i] + j)
+
     return dof
 
 
 def AssembleMatrix(MatrixType):
-    '''Función que realiza el ensamble de la matriz K, de Ku=F
     '''
+    Realiza el ensamble de la matriz K, de Ku = F
+    Performs the assembly of the matrix k, of Ku = F
+    
+
+        Input:
+                MatrixType  : Texto que indica que arreglo se quiere obtener
+                MatrixType  : Text indicating the array to obtain
+        Output:
+                A           : Arreglo obtenido del ensamble de las matrices de los elementos finitos.
+                A           : Array obtained from assembly of finite elements matrix.
+    '''
+
+    # Lee el archivo Data
+    # Reading Data file
+
     data = open_data()
 
     NN = data['NN']
@@ -822,63 +1127,119 @@ def AssembleMatrix(MatrixType):
     elem_type = data['elem_type']
     elem_noInt = data['elem_noInt']
     elem_nodes = data['elem_nodes']
-    Nodos = data['Nodos']
+    Nodes = data['Nodes']
     SpaceDim = data['SpaceDim']
-    Conex = data['Conex']
-    pde = data['pde']
+    Connect = data['Connect']
+    PDE = data['pde']
+
+    # Calcula el número de grados de libertad totales y el número de grados de libertad por cada elemento
+    # Calculates the total number of degrees of freedom and the number of degree of freedom per element
 
     N = NN * elem_dof
     n = elem_nodes * elem_dof
-    # Definiendo matriz sparse para la matriz global
+
+    # Definine la Matriz "SPARSE" para la Matriz Global con el número total de grados de libertad del modelo
+    # Defines the "SPARSE" Matrix for the Global Matrix with the total number of degree of freedom of the model
+
     A = sparse.lil_matrix((N, N), dtype=np.float64)
-    # Definiendo Matriz para elementos
+
+    # Define la Matriz para los elementos
+    # Defines the matrix for the elements
+
     A_e = np.zeros(n, dtype=np.float64)
     A_int = np.zeros(n, dtype=np.float64)
-    # Se obtiene los pesos y posiciones de la Cuadratura de Gauss
-    gp = CuadraturaGauss(elem_noInt, SpaceDim)
+
+    # Obtiene los pesos y posiciones de la Cuadratura de Gauss
+    # Gets the weight and position of the Gauss Quadrature
+
+    gp = GaussQuadrature(elem_noInt, SpaceDim)
+
     # Bucle para ensamblar la matriz de cada elemento
-    for element in Conex.T:
-        # Asigando coordenadas de nodos y connectividad
-        connect_element = element[0:elem_nodes]
-        if SpaceDim == 1:
-            x_element = Nodos[connect_element]
-        else:
-            x_element = Nodos[:, connect_element]
+    # Loop to assembly the matriz of each element
+
+    for connect_element in Connect:
+
+        # Asigna las coordenadas de nodos y su connectividad
+        # Node coordinates and connectivity are assigned
+
+        x_element = Nodes[connect_element]
+
         # Bucle para realizar la integración según Cuadratura de Gauss
+        # Loop to integrate according to Gauss Quadrature
+
         for gauss_point in gp:
-            # Se calcula Las Funciones de Forma
-            [N, dN, ddN, j] = FunciónForma(x_element, gauss_point, elem_type)
-            # Se calcula la Matriz de cada Elemento
+
+            # Calcula las Funciones de Forma
+            # Calculates the Shape Funtions
+
+            [N, dN, ddN, j] = ShapeFunction(x_element, gauss_point, elem_type)
+
+            # Calculando la Matriz de cada Elemento
+            # Computing the matrix of each element
+
             dX = gauss_point[0] * j
-            # Evaluar el PDE (Elasticidad, Timoshenko, Bernoulli, etc)
-            A_int = eval(pde + '(A_int, x_element, N, dN,ddN, dX, MatrixType)')
+
+            # Evalua el PDE (Elasticidad, Timoshenko, Bernoulli, etc.)
+            # Evaluate the PDE (Elasticity, Timoshenko, Bernoulli, etc.)
+
+            A_int = eval(PDE + '(A_int, x_element, N, dN,ddN, dX, MatrixType)')
+
             A_e = A_e + A_int
-        # if MatrixType=="MatrizK": print("K_elemento",A_e)
-        # Se mapea los grados de libertad
+
+        # Mapea los grados de libertad
+        # Degrees of freedom mapping
+
         dof = DofMap(elem_dof, connect_element, elem_nodes)
+
         # Ensamblando
+        # Assembling
+
         cont = 0
+
         for k in dof:
+
             A[k, dof] = A[k, dof] + A_e[cont]
+
             cont = cont + 1
-        # Se resetea la Matriz del Elemento
+
+        # Restablece la Matriz del Elemento
+        # Resets the matrix of the element
+
         A_e[:] = 0.0
 
-    if MatrixType == "MatrizK":
+    if MatrixType == "MatrixK":
+
         data['K'] = A
 
-        with open('data/Data.sav', 'wb') as f:
-            pickle.dump(data, f)
+        print("Matriz K calculada")
 
-    elif MatrixType == "MasaConcentrada":
+        data_file = open('./Data', 'wb')
+        pickle.dump(data, data_file)
+        data_file.close()
+
+    elif MatrixType == "ConcentratedMass":
+
         data['M'] = A
-        with open('data/Data.sav', 'wb') as f:
-            pickle.dump(data, f)
+
+        print("Matriz M calculada")
+
+        data_file = open('./Data', 'wb')
+        pickle.dump(data, data_file)
+        data_file.close()
 
 
-def AssembleVector(MatrixType):
-    '''Función que realiza el ensamble del vector F, de Ku=F
+def AssembleVector():
     '''
+    Realiza el ensamble del vector F, de Ku=F
+    Performs the assembly of the F vector from Ku = F
+
+    Output:
+        f   : Vector obtenido del ensamble de los vectores f_e de los elementos finitos.
+        f   : Vector obtained from the assembly of the vectors f_e of the finite elements.
+    '''
+
+    # Lee el archivo Data
+    # Reading Data file
 
     data = open_data()
 
@@ -886,81 +1247,140 @@ def AssembleVector(MatrixType):
     elem_dof = data['elem_dof']
     elem_type = data['elem_type']
     elem_noInt = data['elem_noInt']
-    Nodos = data['Nodos']
+    Nodes = data['Nodes']
     SpaceDim = data['SpaceDim']
-    Conex = data['Conex']
+    Connect = data['Connect']
     elem_nodes = data['elem_nodes']
-    pde = data['pde']
+    PDE = data['pde']
+
+    # Calcula el número de grados de libertad totales y el número de grados de libertad por cada elemento
+    # Calculates the total number of degrees of freedom and the number of degree of freedom per element
 
     N = NN * elem_dof
     n = elem_nodes * elem_dof
 
-    # Definiendo vector f global
+    # Define el vector f global
+    # Defines the f global vector
+
     f = np.zeros(N, np.float64)
-    # Definiendo Matriz para elementos
+
+    # Define Vector f_e de los elementos
+    # Defines Vector f_e of elements
+
     f_e = np.zeros(n, np.float64)
     f_int = np.zeros(n, np.float64)
-    # Se obtiene los pesos y posiciones de la Cuadratura de Gauss
-    gp = CuadraturaGauss(elem_noInt, SpaceDim)
+
+    # Obtiene los pesos y posiciones de la Cuadratura de Gauss
+    # Gets the weight and position of the Gauss Quadrature
+
+    gp = GaussQuadrature(elem_noInt, SpaceDim)
+
     # Bucle para ensamblar la matriz de cada elemento
-    for element in Conex.T:
-        # Asigando coordenadas de nodos y connectividad
-        connect_element = element[0:elem_nodes]
-        if SpaceDim == 1:
-            x_element = Nodos[connect_element]
-        else:
-            x_element = Nodos[:, connect_element]
+    # Loop to assembly the matriz of each element
+
+    for connect_element in Connect:
+
+        # Asigna las coordenadas de nodos y su connectividad
+        # Node coordinates and connectivity are assigned
+
+        x_element = Nodes[connect_element]
+
         # Bucle para realizar la integración según Cuadratura de Gauss
+        # Loop to integrate according to Gauss Quadrature
+
         for gauss_point in gp:
-            # Se calcula Las Funciones de Forma
-            [N, dN, ddN, j] = FunciónForma(x_element, gauss_point, elem_type)
-            # Se calcula la Matriz de cada Elemento
+
+            # Calcula las Funciones de Forma
+            # Calculates the Shape Funtions
+
+            [N, dN, ddN, j] = ShapeFunction(x_element, gauss_point, elem_type)
+
+            # Calculando la Matriz de cada Elemento
+            # Computing the matrix of each element
+
             dX = gauss_point[0] * j
-            # Evaluar el PDE (Elasticidad, Timoshenko, Bernoulli, etc)
-            f_int = eval(pde + '(f_int, x_element, N, dN, ddN, dX, "VectorF")')
+
+            # Evalua el PDE (Elasticidad, Timoshenko, Bernoulli, etc.)
+            # Evaluate the PDE (Elasticity, Timoshenko, Bernoulli, etc.)
+
+            f_int = eval(PDE + '(f_int, x_element, N, dN, ddN, dX, "VectorF")')
+
             f_e = f_e + f_int
-        # Se mapea los grados de libertad
+
+        # Mapea los grados de libertad
+        # Degrees of freedom mapping
+
         dof = DofMap(elem_dof, connect_element, elem_nodes)
+
         # Ensamblando
-        # print(dof,f_e)
+        # Assembling
+
         f[dof] = f[dof] + f_e
+
         f_e = 0.0
 
     data['f'] = f
-    with open('data/Data.sav', 'wb') as f:
-        pickle.dump(data, f)
+
+    data_file = open('./Data', 'wb')
+    pickle.dump(data, data_file)
+    data_file.close()
 
 
 def ApplyBC():
-    '''Esta función aplica las condiciones de borde especificadas
     '''
+    Asigna las condiciones de borde especificadas
+    Assigns the specified edge conditions
+
+    '''
+
     data = open_data()
+
     elem_dof = data['elem_dof']
+    print('elem_dof', elem_dof)
     BC_data = data['BC_data']
     A = data['K']
     f = data['f']
+    dof_to_reduce = []
+
+    print(BC_data)
 
     for bc in BC_data:
+
         if int(bc[1]) == 0:  # Neumann
-            dof = int(elem_dof * (bc[0] - 1) + bc[2]) - 1
-            print("Neumann, DOF:", dof)
+
+            dof = int(elem_dof * bc[0] + bc[2]) - 1
+
+            print("CB Neumann, DOF:", dof)
+
             f[dof] = f[dof] + bc[3]
+
         elif int(bc[1]) == 1:  # Dirichlet
-            dof = int(elem_dof * (bc[0] - 1) + bc[2]) - 1
-            print("Dirichlet, DOF:", dof)
+
+            dof = int(elem_dof * bc[0] + bc[2]) - 1
+
+            dof_to_reduce.append(dof)
+
+            print("CB Dirichlet, DOF:", dof)
+
             A[dof, :] = 0.0
             A[dof, dof] = 1.0
             f[dof] = bc[3]
+
         else:
+
             print('Condición de Borde Desconocida')
 
     data['K'] = A
     data['f'] = f
-    with open('data/Data.sav', 'wb') as f:
-        pickle.dump(data, f)
+    data['dof_to_reduce'] = dof_to_reduce
+
+    data_file = open('./Data', 'wb')
+    pickle.dump(data, data_file)
+    data_file.close()
 
 
 def Analysis():
+
     data = open_data()
     K = data['K']
     f = data['f']
@@ -968,32 +1388,78 @@ def Analysis():
     u = spsolve(K.tocsr(), f)
 
     data['u'] = u
-    with open('data/Data.sav', 'wb') as f:
-        pickle.dump(data, f)
+    data_file = open('./Data', 'wb')
+    pickle.dump(data, data_file)
+    data_file.close()
 
 
-########## Funciones Diversas ############
-
-
-def Deformada(u, FS=1 / 500):
+def deformed(u, FS=1):
     ''' Función que agrega una deformación a la pocisión de Nodos
         Input:
-            X:      Arreglo que contiene las coordenadas de todos los Nodos
-            u:      Arreglo que contiene las deformaciones calculadas con el MEF
-            FS:     Factor de Escala
+            u       : Arreglo que contiene las deformaciones calculadas con el MEF 
+            u       : Array containing the deformations calculated with FEM.
+            FS      : Factor de Escala
+            FS      : Scale factor
         Output:
-            X_def:  Arreglo que contiene la deformada del sistema.
+            X_def   : Arreglo que contiene la deformada del sistema
+            X_def   : Array containing the systema deformed
+            X_incr  : Arreglo que contiene los desplazamientos de los nodos
+            X_incr  : Array containing the displacements of the nodes
         '''
     data = open_data()
-    X = data['Nodos'].T
-    NN = len(X)
-    print(NN)
-    X_incr = np.zeros(X.shape)
-    X_def = np.zeros(X.shape)
 
-    for i in range(NN):
-        X_incr[i] = FS * np.array([u[2 * i], u[2 * i + 1]])
-        X_def[i] = X[i] + FS * np.array([u[2 * i], u[2 * i + 1]])
+    Nodes = data['Nodes']
+    SpaceDim = data['SpaceDim']
+
+    NN = len(Nodes)
+
+    X_incr = np.zeros(Nodes.shape)
+    X_def = np.zeros(Nodes.shape)
+
+    if SpaceDim == 2:
+        for i in range(NN):
+            X_incr[i] = FS * np.array([u[2 * i], u[2 * i + 1]])
+            X_def[i] = Nodes[i] + FS * np.array([u[2 * i], u[2 * i + 1]])
+
+    elif SpaceDim == 3:
+        for i in range(NN):
+            X_incr[i] = FS * np.array([u[3 * i], u[3 * i + 1], u[3 * i + 2]])
+            X_def[i] = Nodes[i] + X_incr[i]
+
+    return X_def, X_incr
+
+
+def deformed_din(Nodes, u, FS=1):
+    ''' Función que agrega una deformación a la pocisión de Nodos
+        Input:
+            u       : Arreglo que contiene las deformaciones calculadas con el MEF 
+            u       : Array containing the deformations calculated with FEM.
+            FS      : Factor de Escala
+            FS      : Scale factor
+        Output:
+            X_def   : Arreglo que contiene la deformada del sistema
+            X_def   : Array containing the systema deformed
+            X_incr  : Arreglo que contiene los desplazamientos de los nodos
+            X_incr  : Array containing the displacements of the nodes
+        '''
+    data = open_data()
+
+    SpaceDim = data['SpaceDim']
+
+    NN = len(Nodes)
+
+    X_incr = np.zeros(Nodes.shape)
+    X_def = np.zeros(Nodes.shape)
+
+    if SpaceDim == 2:
+        for i in range(NN):
+            X_incr[i] = FS * np.array([u[2 * i], u[2 * i + 1]])
+            X_def[i] = Nodes[i] + FS * np.array([u[2 * i], u[2 * i + 1]])
+
+    elif SpaceDim == 3:
+        for i in range(NN):
+            X_incr[i] = FS * np.array([u[3 * i], u[3 * i + 1], u[3 * i + 2]])
+            X_def[i] = Nodes[i] + X_incr[i]
 
     return X_def, X_incr
 
@@ -1008,30 +1474,50 @@ def tridiag(a=2.1, n=5):
     return np.diag(aa, -1) + np.diag(bb, 0) + np.diag(cc, 1)
 
 
-def K_reductor(K, dof):
+def K_reductor(K):
     '''Función que elimina grados de libertad que no se desea analizar
     '''
+    data = open_data()
+    dof = data['dof_to_reduce']
     k = 0
     for i in dof:
         K = np.delete(np.delete(K, i - k, 0), i - k, 1)
         k = k + 1
-
-
-# print(i,len(K))
     return K
 
 
-def V_insertor(V, dof):
-    '''Función que agrega valores nulos aun vector en posiciones especificadas
+def K_reduc():
+
+    data = open_data()
+
+    K1 = np.array(data['K'].todense())
+    M1 = np.array(data['M'].todense())
+
+    Kq = K_reductor(K1)
+    Mq = K_reductor(M1)
+
+    return Kq, Mq
+
+
+def V_insertor(V):
     '''
+    Función que agrega valores nulos aun vector en posiciones especificadas
+
+    '''
+    data = open_data()
+    dof = data['dof_to_reduce']
+
     for i in dof:
         V = np.insert(V, i, 0)
     return V
 
 
-# converts quad elements into tri elements
 def quads_to_tris(quads):
+    # Define la arreglo que contendrá los elementos triangulares
+    # Defines the array that will contain the triangular elements
+
     tris = [[None for j in range(3)] for i in range(2 * len(quads))]
+
     for i in range(len(quads)):
         j = 2 * i
         n0 = quads[i][0]
@@ -1047,23 +1533,13 @@ def quads_to_tris(quads):
     return tris
 
 
-# plots a finite element mesh
-
-
-def plot_fem_mesh(nodes_x, nodes_y, elements):
-    for element in elements:
-        x = [nodes_x[element[i]] for i in range(len(element))]
-        y = [nodes_y[element[i]] for i in range(len(element))]
-        plt.fill(x, y, edgecolor='black', fill=False, linewidth=0.2)
-
-
 def plot_model_mesh():
 
     data = open_data()
 
     NC = data['NC']
-    Nodos = data['Nodos'].T
-    Conex = data['Conex'].T
+    Nodes = data['Nodes']
+    Connect = data['Connect']
 
     ##
     import matplotlib.tri as tri
@@ -1071,71 +1547,660 @@ def plot_model_mesh():
     import matplotlib.cm as cm
     import matplotlib.colors as colors
 
-    elements_quads = np.zeros((NC, 4), dtype=int)
-
+    elements_quads = Connect
     # FEM data
-    nodes_x = Nodos[:, 0]
-    nodes_y = Nodos[:, 1]
-    # elements = elements_quads
-    elements = Conex
+    nodes_x = Nodes[:, 0]
+    nodes_y = Nodes[:, 1]
 
     # plot the finite element mesh
-    plot_fem_mesh(nodes_x, nodes_y, elements)
+    for element in elements_quads:
+        x = nodes_x[element]
+        y = nodes_y[element]
+        plt.fill(x, y, edgecolor='black', fill=False, linewidth=0.2)
 
     plt.axis('equal')
-    plt.show()
-    # plt.savefig('Mesh.png')
+    # plt.show()
+    plt.savefig('Mesh.png')
     plt.close()
 
 
-def plot_model_deformada(dir, FS):
+def set_axes_equal(ax):
+    '''Make axes of 3D plot have equal scale so that spheres appear as spheres,
+    cubes as cubes, etc..  This is one possible solution to Matplotlib's
+    ax.set_aspect('equal') and ax.axis('equal') not working for 3D.
 
-    ##
-    import matplotlib.tri as tri
-    import matplotlib.pyplot as plt
-    import matplotlib.cm as cm
-    import matplotlib.colors as colors
-    ##
+    Input
+      ax: a matplotlib axis, e.g., as output from plt.gca().
+    '''
+
+    x_limits = ax.get_xlim3d()
+    y_limits = ax.get_ylim3d()
+    z_limits = ax.get_zlim3d()
+
+    x_range = abs(x_limits[1] - x_limits[0])
+    x_middle = np.mean(x_limits)
+    y_range = abs(y_limits[1] - y_limits[0])
+    y_middle = np.mean(y_limits)
+    z_range = abs(z_limits[1] - z_limits[0])
+    z_middle = np.mean(z_limits)
+
+    # The plot bounding box is a sphere in the sense of the infinity
+    # norm, hence I call half the max range the plot radius.
+    plot_radius = 0.5 * max([x_range, y_range, z_range])
+
+    ax.set_xlim3d([x_middle - plot_radius, x_middle + plot_radius])
+    ax.set_ylim3d([y_middle - plot_radius, y_middle + plot_radius])
+    ax.set_zlim3d([z_middle - plot_radius, z_middle + plot_radius])
+
+
+def plot_model_mesh_3D():
+
     data = open_data()
 
-    Nodos = data['Nodos'].T
     NC = data['NC']
-    Conex = data['Conex'].T
+    nz = data['nz']
+    Nodes = data['Nodes']
+    Connect = data['Connect']
+
+    fig = plt.figure()
+    ax1 = fig.add_subplot(projection='3d')
+    ax1.set_xlabel("X")
+    ax1.set_ylabel("Y")
+    ax1.set_zlabel("Z")
+
+    # elements_quads = Connect
+    # # FEM data
+    nodes_x = np.array(Nodes[:, 0])
+    nodes_y = np.array(Nodes[:, 1])
+    nodes_z = np.array(Nodes[:, 2])
+
+    for conn in Connect:
+
+        xx_1 = np.concatenate((nodes_x[conn[:4]], [nodes_x[conn[0]]]))
+        yy_1 = np.concatenate((nodes_y[conn[:4]], [nodes_y[conn[0]]]))
+        zz_1 = np.concatenate((nodes_z[conn[:4]], [nodes_z[conn[0]]]))
+
+        xx_2 = []
+        yy_2 = []
+        zz_2 = []
+        xx_3 = []
+        yy_3 = []
+        zz_3 = []
+
+        for j in [0, 3, 7, 4, 0]:
+            xx_2 = np.concatenate((xx_2, [nodes_x[conn[j]]]))
+            yy_2 = np.concatenate((yy_2, [nodes_y[conn[j]]]))
+            zz_2 = np.concatenate((zz_2, [nodes_z[conn[j]]]))
+
+        for k in [1, 2, 6, 5, 1]:
+            xx_3 = np.concatenate((xx_3, [nodes_x[conn[k]]]))
+            yy_3 = np.concatenate((yy_3, [nodes_y[conn[k]]]))
+            zz_3 = np.concatenate((zz_3, [nodes_z[conn[k]]]))
+
+        kwargs = {'alpha': 1, 'color': 'blue'}
+
+        ax1.plot3D(xx_1, yy_1, zz_1, **kwargs)
+        ax1.plot3D(xx_2, yy_2, zz_2, **kwargs)
+        ax1.plot3D(xx_3, yy_3, zz_3, **kwargs)
+
+    for conn in Connect[-int(NC / nz):]:
+
+        xx_1 = np.concatenate((nodes_x[conn[4:]], [nodes_x[conn[4]]]))
+        yy_1 = np.concatenate((nodes_y[conn[4:]], [nodes_y[conn[4]]]))
+        zz_1 = np.concatenate((nodes_z[conn[4:]], [nodes_z[conn[4]]]))
+
+        ax1.plot3D(xx_1, yy_1, zz_1, **kwargs)
+
+    set_axes_equal(ax1)
+
+    # plt.show()
+
+    plt.savefig('Mesh_3D.png')
+    plt.close()
+
+
+def plot_model_deform_3D(FS=1000):
+
+    data = open_data()
+
+    NC = data['NC']
+    nz = data['nz']
+    Connect = data['Connect']
     u = data['u']
 
-    X_Def, X_incr = Deformada(u, FS)
+    X_Def, X_incr = deformed(u, FS)
 
-    # FEM data
+    fig = plt.figure()
+    ax1 = fig.add_subplot(projection='3d')
+
+    ax1.set_xlabel("X")
+    ax1.set_ylabel("Y")
+    ax1.set_zlabel("Z")
+
+    # elements_quads = Connect
+    # # FEM data
+
+    nodes_x = np.array(X_Def[:, 0])
+    nodes_y = np.array(X_Def[:, 1])
+    nodes_z = np.array(X_Def[:, 2])
+
+    for conn in Connect:
+
+        xx_1 = np.concatenate((nodes_x[conn[:4]], [nodes_x[conn[0]]]))
+        yy_1 = np.concatenate((nodes_y[conn[:4]], [nodes_y[conn[0]]]))
+        zz_1 = np.concatenate((nodes_z[conn[:4]], [nodes_z[conn[0]]]))
+
+        xx_2 = []
+        yy_2 = []
+        zz_2 = []
+        xx_3 = []
+        yy_3 = []
+        zz_3 = []
+
+        for j in [0, 3, 7, 4, 0]:
+            xx_2 = np.concatenate((xx_2, [nodes_x[conn[j]]]))
+            yy_2 = np.concatenate((yy_2, [nodes_y[conn[j]]]))
+            zz_2 = np.concatenate((zz_2, [nodes_z[conn[j]]]))
+
+        for k in [1, 2, 6, 5, 1]:
+            xx_3 = np.concatenate((xx_3, [nodes_x[conn[k]]]))
+            yy_3 = np.concatenate((yy_3, [nodes_y[conn[k]]]))
+            zz_3 = np.concatenate((zz_3, [nodes_z[conn[k]]]))
+
+        kwargs = {'alpha': 1, 'color': 'blue'}
+
+        ax1.plot3D(xx_1, yy_1, zz_1, **kwargs)
+        ax1.plot3D(xx_2, yy_2, zz_2, **kwargs)
+        ax1.plot3D(xx_3, yy_3, zz_3, **kwargs)
+
+    for conn in Connect[-int(NC / nz):]:
+
+        xx_1 = np.concatenate((nodes_x[conn[4:]], [nodes_x[conn[4]]]))
+        yy_1 = np.concatenate((nodes_y[conn[4:]], [nodes_y[conn[4]]]))
+        zz_1 = np.concatenate((nodes_z[conn[4:]], [nodes_z[conn[4]]]))
+
+        ax1.plot3D(xx_1, yy_1, zz_1, **kwargs)
+
+    set_axes_equal(ax1)
+
+    plt.show()
+
+    plt.savefig('Model_Deform_Mesh_3D.png')
+    plt.close()
+
+
+def plot_model_deform(dir='x', FS=1):
+
+    import matplotlib.cm
+
+    data = open_data()
+
+    Connect = data['Connect']
+    u = data['u']
+
+    X_Def, X_incr = deformed(u, FS)
+
+    # Posición de los nodos en la estructura deformada
+    # Node position in the deformated structure
+
     nodes_x = X_Def[:, 0]
     nodes_y = X_Def[:, 1]
+
+    # Define en que dirección se mostrarán los resultados
+    # Defines in which direcction the results will be displayed
 
     if dir == 'x':
         nodal_values = X_incr[:, 0]
     else:
         nodal_values = X_incr[:, 1]
 
-    elements_quads = Conex
+    # Define los elementos triangulares a partir de elementos rectangulares
+    # Defines Triangle elements from quadrangular elements
+
+    elements_quads = Connect
 
     elements_all_tris = quads_to_tris(elements_quads)
 
+    # Plotea los elementos finitos
+    # plot the finite element mesh
+
+    for element in elements_quads:
+        x = nodes_x[element]
+        y = nodes_y[element]
+        plt.fill(x, y, edgecolor='black', fill=False, linewidth=0.2)
+
     # create an unstructured triangular grid instance
+
     triangulation = tri.Triangulation(nodes_x, nodes_y, elements_all_tris)
 
-    # plot the finite element mesh
-    plot_fem_mesh(nodes_x, nodes_y, elements_quads)
-
+    # Plotea los contornos de los elementos finitos
     # plot the contours
+
     plt.tricontourf(triangulation, nodal_values, cmap="RdBu_r")
 
     norm = colors.Normalize(vmin=min(nodal_values / FS),
                             vmax=max(nodal_values / FS))
 
-    # Ocultar los valores de los ejes
-    plt.axis('off')
-    plt.colorbar(cm.ScalarMappable(norm=norm, cmap="RdBu_r"),
+    plt.colorbar(matplotlib.cm.ScalarMappable(norm=norm, cmap="RdBu_r"),
                  orientation='horizontal',
                  label='Deformación (m)')
+    # Hides axis
+    # Ocultar los valores de los ejes
+    plt.axis('off')
+
     plt.axis('equal')
-    # plt.savefig('Model_Deformada.png')
-    plt.show()
+
+    plt.savefig('Model_Deformada.png')
+    # plt.show()
     plt.close()
+
+
+def plot_modes(u, FS=1):
+
+    import matplotlib.cm
+
+    data = open_data()
+
+    Connect = data['Connect']
+    # u = data['u']
+
+    X_Def, X_incr = deformed(u, FS)
+
+    # Posición de los nodos en la estructura deformada
+    # Node position in the deformated structure
+
+    nodes_x = X_Def[:, 0]
+    nodes_y = X_Def[:, 1]
+
+    # Define en que dirección se mostrarán los resultados
+    # Defines in which direcction the results will be displayed
+
+    if dir == 'x':
+        nodal_values = X_incr[:, 0]
+    else:
+        nodal_values = X_incr[:, 1]
+
+    # Define los elementos triangulares a partir de elementos rectangulares
+    # Defines Triangle elements from quadrangular elements
+
+    elements_quads = Connect
+
+    elements_all_tris = quads_to_tris(elements_quads)
+
+    # Plotea los elementos finitos
+    # plot the finite element mesh
+
+    for element in elements_quads:
+        x = nodes_x[element]
+        y = nodes_y[element]
+        plt.fill(x, y, edgecolor='black', fill=False, linewidth=0.2)
+
+    # create an unstructured triangular grid instance
+
+    triangulation = tri.Triangulation(nodes_x, nodes_y, elements_all_tris)
+
+    # Plotea los contornos de los elementos finitos
+    # plot the contours
+
+    plt.tricontourf(triangulation, nodal_values, cmap="RdBu_r")
+
+    norm = colors.Normalize(vmin=min(nodal_values / FS),
+                            vmax=max(nodal_values / FS))
+
+    plt.colorbar(matplotlib.cm.ScalarMappable(norm=norm, cmap="RdBu_r"),
+                 orientation='horizontal',
+                 label='Deformación (m)')
+    # Hides axis
+    # Ocultar los valores de los ejes
+    plt.axis('off')
+
+    plt.axis('equal')
+
+    plt.savefig('Model_Modes.png')
+    # plt.show()
+    plt.close()
+
+
+def plot_model_deform_TH(dir, FS):
+    data = open_data()
+    ug = np.genfromtxt("./INPUT/Lima66NS.txt") / 100  # de cm/s2 a m/s2
+    Dq = data['d']
+    Nodos = data['Nodos']
+    import matplotlib.cm as cm
+
+    # Factor de Amplificación
+
+    # vec = vecs[:, mi]
+    # vec_Quad = V_insertor(vec, [0, 1, 2, 3])
+    # Modo_Quad = POS.Deformada(Mesh_Quad, vec_Quad, FS)
+
+    # import matplotlib.cm as cm
+    # ##
+    # data = open_data()
+
+    # Conex = data['Conex']
+    # d = data['d']
+    # print(d.shape)
+
+    # for i in range(1000):
+    #     u = d[i].T
+
+    #     print(u)
+    #     print(u.shape)
+
+    #     X_Def, X_incr = Deformada(u, FS)
+    #     print(X_Def)
+
+    # # line1, = ax.plot([], [], 'r', label="Bern")
+    # # line2, = ax.plot([], [], 'b--', label="Timo")
+    # line3, = ax.plot([], [], 'ko', markersize=0.7, label="Quad")
+    # ax.legend(loc='upper right')
+    ug = np.genfromtxt("./INPUT/Lima66NS.txt") / 100
+    data = open_data()
+
+    Conex = data['Conex']
+    u = data['d']
+    Nodos = data['Nodos']
+    maximo = 0
+
+    for i in range(len(ug)):
+        u = ug[i].T
+        vec = V_insertor(Dq[i])
+        X_Def, X_incr = Deformada(vec, FS)
+
+        if max(abs(X_Def[:, 1])) > maximo:
+            maximo = max(abs(X_Def[:, 1]))
+
+    for i in range(300):
+
+        vec = V_insertor(Dq[i])
+        X_Def, X_incr = Deformada(vec, FS)
+
+        # line3.set_xdata(X_Def[:, 0] - 0.25)
+        # line3.set_ydata(X_Def[:, 1])
+
+        # # FEM data
+        nodes_x = X_Def[:, 0] - 0.25
+        nodes_y = X_Def[:, 1]
+
+        if dir == 'x':
+            nodal_values = X_incr[:, 0]
+        else:
+            nodal_values = X_incr[:, 1]
+
+        nodes_x = X_Def[:, 0] - 0.25
+
+        elements_quads = Conex
+
+        elements_all_tris = quads_to_tris(elements_quads)
+
+        # create an unstructured triangular grid instance
+        triangulation = tri.Triangulation(nodes_x, nodes_y, elements_all_tris)
+
+        for element in elements_quads:
+
+            x_aux = nodes_x[element]
+            y_aux = nodes_y[element]
+            wframe_1 = plt.fill(x_aux,
+                                y_aux,
+                                edgecolor='black',
+                                fill=False,
+                                linewidth=0.2)
+
+        plt.tricontourf(triangulation, abs(nodal_values), cmap="RdBu_r")
+
+        # Ocultar los valores de los ejes
+        plt.axis('off')
+
+        # norm = colors.Normalize(vmin=min(nodal_values / FS),
+        #                         vmax=max(nodal_values / FS))
+
+        norm = colors.Normalize(vmin=0, vmax=maximo / FS)
+
+        plt.colorbar(cm.ScalarMappable(norm=norm, cmap="RdBu_r"),
+                     orientation='horizontal',
+                     label='Deformación (m)')
+
+        plt.axis('equal')
+        # limites en x e y
+        plt.xlim(-0.8, 0.8)
+        plt.ylim(-0.25, 6)
+        plt.title("%5.2f(s)" % (i * 0.02))
+        # ocultar los valores de los ejes
+        plt.axis('off')
+
+        # plt.set_title("%5.2f(s)" % (i * 0.02))
+        plt.savefig(
+            r'C:\Users\RICK\Desktop\Nueva carpeta\Nueva carpeta\Model_Deformada_TH_{:05}.png'
+            .format(i),
+            dpi=300)
+
+        plt.close()
+
+
+def Amortiguamiento(K, M, ζ=0.05, tipo_am="Rayleigh"):
+    '''
+    Función que Estima la matriz de amortiguamiento según el tipo de método escogido (Rayleigh, ...)
+        Input:
+            K:      Matriz de Rigidez
+            M:      Matriz de Masas
+            ζ:      Factor de Amortiguamiento Relativo
+            tipo_am:Método para estimar la matriz de amortiguamiento
+        Output:
+            C:      Matriz de Amortiguamiento
+    '''
+    from scipy.linalg import eigh
+    vals, vecs = eigh(K, M)
+    n = len(M)
+    #
+    if tipo_am == "Rayleigh":
+        tipo = (type(ζ).__name__)
+        if tipo == 'float':
+            if not 0.0 <= ζ or ζ >= 1.0:
+                print("Error! El valor de ζ debe estar en [0,1]")
+            ζ = [ζ, ζ]
+        elif tipo == 'list':
+            if not len(ζ) == 2:
+                print("Error! Definir ζ como una lista: [ζi,ζf]")
+        else:
+            print("Error! ζ debe ser decimal o un lista de 2 valores [ζi,ζf]")
+        #
+        wi, wf = vals[0]**0.5, vals[int(n / 2)]**0.5
+        β = 2 * (wf * ζ[1] - wi * ζ[0]) / (wi**2 + wf**2)
+        α = 2 * wi**2**0.5 * ζ[0] - β * wi**2
+        print("\nw0,w%s:%s,%s\nα,β=%s,%s" % (int(n / 2), wi, wf, α, β))
+        C = α * M + β * K
+        #
+    else:
+        print("Aún no se ha programado para %s" % tipo_am)
+    return C
+
+
+def MDOF_LTH(K, M, C, ug, dt, γ=1 / 2, β=1 / 4, gdl=0):
+    ''' 
+    Función que estima la respuesta dinámica lineal de una estructura a través del método de newmark usando la formulación incremental.
+        Input:
+            K:  Matriz de Rigidez
+            M:  Matriz de Masas
+            C:  Matriz de Amortiguamiento
+            ug: Registro de aceleración
+            dt: Intervalo de tiempo del registro
+            γ,β:Constantes de newmark
+            gdl:Grado de Libertad donde actua las aceleraciones
+        Output:
+            d:  Matriz que contiene los desplazamientos de los gdl en el tiempo
+            v:  Matriz que contiene las velocidades de los gdl en el tiempo
+            a:  Matriz que contiene las aceleraciones de gdl nodos en el tiempo
+        '''
+    from numpy.linalg import inv
+    #
+    n = len(M)
+    ns = len(ug)
+    dx = np.zeros((ns + 1, n))
+    d = np.zeros((ns + 1, n))
+    v = np.zeros((ns + 1, n))
+    a = np.zeros((ns + 1, n))
+    df = np.zeros((ns + 1, n))
+    #
+    df[0] = 0
+    df[1] = -(ug[1] - ug[0])
+    #
+    c1 = 1 - γ / β
+    c2 = γ / (β * dt)
+    c3 = dt * (1 - γ / (2 * β))
+    #
+    a1 = M / (β * dt**2) + γ * C / (β * dt) + K
+    a2 = M / (β * dt) + γ * C / β
+    a3 = M / (2 * β) - dt * (1 - γ / (2 * β)) * C
+    I = np.ones(n) * 0
+    I[gdl::2] = 1.0
+    MI = M @ I
+    #
+    # Solución de la ecuación diferencial
+    for i in range(1, ns):
+        if i % 100 == 0: print("Paso:\t%s\nTiempo:\t%s(s)" % (i, i * dt))
+        dx[i] = inv(a1) @ (a2 @ v[i - 1] + a3 @ a[i - 1] + MI * df[i])
+        #
+        d[i] = d[i - 1] + dx[i]
+        v[i] = c1 * v[i - 1] + c2 * dx[i] + c3 * a[i - 1]
+        a[i] = -inv(M) @ (C @ v[i] + K @ d[i] + MI * ug[i])
+        #
+        df[i] = -(ug[i] - ug[i - 1])
+
+    data = open_data()
+    # Guardar d, v y a con piclke
+    data['d'] = d
+    data['v'] = v
+    data['a'] = a
+
+    data_file = open('./Data', 'wb')
+    pickle.dump(data, data_file)
+    data_file.close()
+
+    return d, v, a
+
+
+def dinamic_plot(u=[], FS=15):
+
+    data = open_data()
+
+    NC = data['NC']
+    nx = data['nx']
+    Connect = data['Connect']
+    Nodes = data['Nodes']
+    L = data['L']
+    H = data['H']
+
+    aux = np.array([])
+    aux_1 = np.array([])
+
+    for i in range(NC):
+
+        if (i + 1) % nx == 0 and i != 0:
+            for j in range(4):
+                aux = np.append(aux, 2 * Connect[i][j])
+                aux = np.append(aux, 2 * Connect[i][j] + 1)
+
+            aux = np.append(aux, 2 * Connect[i][0])
+            aux = np.append(aux, 2 * Connect[i][0] + 1)
+            aux = np.append(aux, 2 * Connect[i + 1 - nx][0])
+            aux = np.append(aux, 2 * Connect[i + 1 - nx][0] + 1)
+            aux_1 = np.append(aux_1, Connect[i])
+            aux_1 = np.append(aux_1, Connect[i][0])
+            aux_1 = np.append(aux_1, Connect[i + 1 - nx][0])
+        else:
+            for j in range(4):
+
+                aux = np.append(aux, 2 * Connect[i][j])
+                aux = np.append(aux, 2 * Connect[i][j] + 1)
+            aux = np.append(aux, 2 * Connect[i][0])
+            aux = np.append(aux, 2 * Connect[i][0] + 1)
+            aux_1 = np.append(aux_1, Connect[i])
+            aux_1 = np.append(aux_1, Connect[i][0])
+
+    Dq_din = np.zeros((u.shape[0], aux.shape[0]))
+    Nodes_din = np.zeros((aux_1.shape[0], Nodes.shape[1]))
+    print('aux', aux)
+    print('Dq_din', Dq_din.shape)
+
+    print('u.shape', u.shape)
+    for i, value in enumerate(aux):
+        Dq_din[:, i] = u[:, int(value)]
+
+    for i, value in enumerate(aux_1):
+        Nodes_din[i] = Nodes[int(value)]
+
+    fig = plt.figure(figsize=(3, 10))
+    ax = fig.add_subplot(111)
+    ax.axis('equal')
+    # line1, = ax.plot([], [], 'r', label="Bern")
+    # line2, = ax.plot([], [], 'b--', label="Timo")
+    line3, = ax.plot([], [], 'k-', markersize=15, label="Quad")
+    # line4, = ax.plot([], [], 'k', label="Lin")
+    ax.legend(loc='upper right')
+    ax.set_xlim(-10 - L / 2, L / 2 + 10)
+    ax.set_ylim(-0.5, H + 0.5)
+
+    def anima(i, factor):
+        # line1.set_xdata(np.insert(Db[i][1::2], 0, 0) * factor)
+        # line1.set_ydata(xB)
+        # line2.set_xdata(np.insert(Dt[i][1::2], 0, 0) * factor)
+        # line2.set_ydata(xT)
+        X_def, X_incr = deformed_din(Nodes_din, Dq_din[i], factor)
+        line3.set_xdata(X_def[:, 0] - L / 2)
+        line3.set_ydata(X_def[:, 1])
+        # ax.set_title("%5.2f(s)" % (i * 0.02))
+
+        return line3,
+
+    ani = animation.FuncAnimation(fig,
+                                  anima,
+                                  frames=len(u) - 1,
+                                  fargs=(FS, ),
+                                  interval=100,
+                                  blit=True)
+    ani.save('animacion.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
+    plt.show()
+
+
+import subprocess
+
+# import ffmpeg
+
+
+def get_codecs():
+    cmd = "ffmpeg -codecs"
+    x = subprocess.check_output(cmd, shell=True)
+    x = x.split(b'\n')
+    for e in x:
+        print(e)
+
+
+def get_formats():
+    cmd = "ffmpeg -formats"
+    x = subprocess.check_output(cmd, shell=True)
+    x = x.split(b'\n')
+    for e in x:
+        print(e)
+
+
+def convert_seq_to_mov():
+
+    input = r"C:\Users\RICK\Desktop\Nueva carpeta\Nueva carpeta\Model_Deformada_TH_%05d.png"
+    # input = r"C:\Users\HP\Desktop\FFMPEG\smoke\dense_smoke_p001.%03d.png"
+
+    output = r"C:\Users\RICK\Desktop\Nueva carpeta\out.mp4"
+
+    frame_rate = 5
+
+    cmd = f'ffmpeg -framerate {frame_rate} -i "{input}" "{output}"'
+
+    print(cmd)
+
+    subprocess.check_output(cmd, shell=True)
+    # subprocess.run(f'cmd /k ffmpeg', shell=True)
+
+
+# get_codecs()
+# get_formats()
+# convert_seq_to_mov()
