@@ -1559,7 +1559,7 @@ def plot_model_mesh():
         plt.fill(x, y, edgecolor='black', fill=False, linewidth=0.2)
 
     plt.axis('equal')
-    # plt.show()
+    plt.show()
     plt.savefig('Mesh.png')
     plt.close()
 
