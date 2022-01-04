@@ -1653,7 +1653,7 @@ def plot_model_mesh_3D():
 
     set_axes_equal(ax1)
 
-    # plt.show()
+    plt.show()
 
     plt.savefig('Mesh_3D.png')
     plt.close()
@@ -1791,7 +1791,7 @@ def plot_model_deform(dir='x', FS=1):
     plt.axis('equal')
 
     plt.savefig('Model_Deformada.png')
-    # plt.show()
+    plt.show()
     plt.close()
 
 
@@ -1857,7 +1857,7 @@ def plot_modes(u, FS=1):
     plt.axis('equal')
 
     plt.savefig('Model_Modes.png')
-    # plt.show()
+    plt.show()
     plt.close()
 
 
