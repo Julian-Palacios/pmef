@@ -2170,6 +2170,10 @@ def MDOF_LTH(ug, dt, γ=1 / 2, β=1 / 4, gdl=0):
 
 def dinamic_plot(u=[], FS=15):
 
+    from matplotlib import animation, rc
+
+    rc('animation', html='jshtml')
+
     data = open_data()
 
     NC = data['NC']
