@@ -12,6 +12,7 @@ import matplotlib.colors as colors
 import matplotlib.animation as animation
 
 import numpy as np
+from numpy.lib.shape_base import kron
 from numpy.linalg import det, inv
 from scipy import sparse
 import matplotlib.pyplot as plt
@@ -1473,8 +1474,7 @@ def tridiag(a=2.1, n=5):
     cc = [-a for i in range(n - 1)]
     return np.diag(aa, -1) + np.diag(bb, 0) + np.diag(cc, 1)
 
-
-def K_reductor(K):
+    # def K_reductor(K):
     '''Función que elimina grados de libertad que no se desea analizar
     '''
     data = open_data()
@@ -1486,17 +1486,33 @@ def K_reductor(K):
     return K
 
 
-def K_reduc():
+def Reduc_Matrix():
+    '''
+    Elimina grados de libertad que no se desea analizar
 
+    '''
     data = open_data()
 
+    dof = data['dof_to_reduce']
     K1 = np.array(data['K'].todense())
     M1 = np.array(data['M'].todense())
 
-    Kq = K_reductor(K1)
-    Mq = K_reductor(M1)
+    # Elimina grados de libertad (Stiffness Matrix)
+    # Remove degree of freedom
 
-    return Kq, Mq
+    Kr = np.delete(np.delete(K1, dof, axis=0), dof, axis=1)
+
+    # Elimina grados de libertad (Mass Matrix)
+    # Remove degree of freedom
+
+    Mr = np.delete(np.delete(M1, dof, axis=0), dof, axis=1)
+
+    data['Kr'] = Kr
+    data['Mr'] = Mr
+
+    data_file = open('./Data', 'wb')
+    pickle.dump(data, data_file)
+    data_file.close()
 
 
 def V_insertor(V):
@@ -1795,72 +1811,6 @@ def plot_model_deform(dir='x', FS=1):
     plt.close()
 
 
-def plot_modes(u, FS=1):
-
-    import matplotlib.cm
-
-    data = open_data()
-
-    Connect = data['Connect']
-    # u = data['u']
-
-    X_Def, X_incr = deformed(u, FS)
-
-    # Posición de los nodos en la estructura deformada
-    # Node position in the deformated structure
-
-    nodes_x = X_Def[:, 0]
-    nodes_y = X_Def[:, 1]
-
-    # Define en que dirección se mostrarán los resultados
-    # Defines in which direcction the results will be displayed
-
-    if dir == 'x':
-        nodal_values = X_incr[:, 0]
-    else:
-        nodal_values = X_incr[:, 1]
-
-    # Define los elementos triangulares a partir de elementos rectangulares
-    # Defines Triangle elements from quadrangular elements
-
-    elements_quads = Connect
-
-    elements_all_tris = quads_to_tris(elements_quads)
-
-    # Plotea los elementos finitos
-    # plot the finite element mesh
-
-    for element in elements_quads:
-        x = nodes_x[element]
-        y = nodes_y[element]
-        plt.fill(x, y, edgecolor='black', fill=False, linewidth=0.2)
-
-    # create an unstructured triangular grid instance
-
-    triangulation = tri.Triangulation(nodes_x, nodes_y, elements_all_tris)
-
-    # Plotea los contornos de los elementos finitos
-    # plot the contours
-
-    plt.tricontourf(triangulation, nodal_values, cmap="RdBu_r")
-
-    norm = colors.Normalize(vmin=min(nodal_values / FS),
-                            vmax=max(nodal_values / FS))
-
-    plt.colorbar(matplotlib.cm.ScalarMappable(norm=norm, cmap="RdBu_r"),
-                 orientation='horizontal',
-                 label='Deformación (m)')
-    # Hides axis
-    # Ocultar los valores de los ejes
-    plt.axis('off')
-
-    plt.axis('equal')
-
-    plt.savefig('Model_Modes.png')
-    plt.show()
-    plt.close()
-
-
 def plot_model_deform_TH(dir, FS):
     data = open_data()
     ug = np.genfromtxt("./INPUT/Lima66NS.txt") / 100  # de cm/s2 a m/s2
@@ -1978,45 +1928,169 @@ def plot_model_deform_TH(dir, FS):
         plt.close()
 
 
-def Amortiguamiento(K, M, ζ=0.05, tipo_am="Rayleigh"):
+def plot_modes(mode=1, FS=1):
+
+    import matplotlib.cm
+
+    data = open_data()
+
+    Connect = data['Connect']
+    vecs = data['vecs'][:, mode - 1]
+
+    X_Def, X_incr = deformed(vecs, FS)
+
+    # Posición de los nodos en la estructura deformada
+    # Node position in the deformated structure
+
+    nodes_x = X_Def[:, 0]
+    nodes_y = X_Def[:, 1]
+
+    # Define en que dirección se mostrarán los resultados
+    # Defines in which direcction the results will be displayed
+
+    if dir == 'x':
+        nodal_values = X_incr[:, 0]
+    else:
+        nodal_values = X_incr[:, 1]
+
+    # Define los elementos triangulares a partir de elementos rectangulares
+    # Defines Triangle elements from quadrangular elements
+
+    elements_quads = Connect
+
+    elements_all_tris = quads_to_tris(elements_quads)
+
+    # Plotea los elementos finitos
+    # plot the finite element mesh
+
+    for element in elements_quads:
+        x = nodes_x[element]
+        y = nodes_y[element]
+        plt.fill(x, y, edgecolor='black', fill=False, linewidth=0.2)
+
+    # create an unstructured triangular grid instance
+
+    triangulation = tri.Triangulation(nodes_x, nodes_y, elements_all_tris)
+
+    # Plotea los contornos de los elementos finitos
+    # plot the contours
+
+    plt.tricontourf(triangulation, nodal_values, cmap="RdBu_r")
+
+    norm = colors.Normalize(vmin=min(nodal_values / FS),
+                            vmax=max(nodal_values / FS))
+
+    plt.colorbar(matplotlib.cm.ScalarMappable(norm=norm, cmap="RdBu_r"),
+                 orientation='horizontal',
+                 label='Deformación (m)')
+    # Hides axis
+    # Ocultar los valores de los ejes
+    plt.axis('off')
+
+    plt.axis('equal')
+
+    plt.savefig('Model_Modes.png')
+    plt.show()
+    plt.close()
+
+
+def Modal_Analysis():
+
+    from scipy.linalg import eigh
+
+    data = open_data()
+
+    Mr = data['Mr']
+    Kr = data['Kr']
+    n_dof_to_reduce = len(data['dof_to_reduce'])
+
+    vals, vecs = eigh(Kr, Mr)
+    vecs = np.vstack((np.zeros((n_dof_to_reduce, len(vecs))), vecs))
+
+    data['vecs'] = vecs
+
+    data_file = open('./Data', 'wb')
+    pickle.dump(data, data_file)
+    data_file.close()
+
+
+def AssemblyDamping(ζ=0.05, tipo_am="Rayleigh"):
     '''
-    Función que Estima la matriz de amortiguamiento según el tipo de método escogido (Rayleigh, ...)
-        Input:
-            K:      Matriz de Rigidez
-            M:      Matriz de Masas
-            ζ:      Factor de Amortiguamiento Relativo
-            tipo_am:Método para estimar la matriz de amortiguamiento
-        Output:
-            C:      Matriz de Amortiguamiento
+    Estima la matriz de amortiguamiento según el tipo de método escogido (Rayleigh, ...)
+    Estimates the Damping matrix according to the selected method (Rayleigh, ...)
+
+        Input
+
+            K       : Matriz de Rigidez
+            K       : Stiffess matrix 
+            M       : Matriz de Masas
+            M       : Mass Matrix
+            ζ       : Fracción del amortiguamiento crítico
+            ζ       : Critical damping fraction
+            tipo_am : Método para estimar la matriz de amortiguamiento
+            tipo_am : Method to estimate the damping matrix
+        Output
+
+            C       : Matriz de Amortiguamiento
+            C       : Damping Matrix
     '''
     from scipy.linalg import eigh
+    import math
+
+    data = open_data()
+
+    K = data['Kr']
+    M = data['Mr']
+
     vals, vecs = eigh(K, M)
+    T = 2 * np.pi / vals
+
     n = len(M)
-    #
+
     if tipo_am == "Rayleigh":
+
         tipo = (type(ζ).__name__)
+
         if tipo == 'float':
+
             if not 0.0 <= ζ or ζ >= 1.0:
+
                 print("Error! El valor de ζ debe estar en [0,1]")
+
             ζ = [ζ, ζ]
+
         elif tipo == 'list':
+
             if not len(ζ) == 2:
+
                 print("Error! Definir ζ como una lista: [ζi,ζf]")
+
         else:
+
             print("Error! ζ debe ser decimal o un lista de 2 valores [ζi,ζf]")
-        #
+
         wi, wf = vals[0]**0.5, vals[int(n / 2)]**0.5
+
         β = 2 * (wf * ζ[1] - wi * ζ[0]) / (wi**2 + wf**2)
+
         α = 2 * wi**2**0.5 * ζ[0] - β * wi**2
+
         print("\nw0,w%s:%s,%s\nα,β=%s,%s" % (int(n / 2), wi, wf, α, β))
+
         C = α * M + β * K
-        #
+
     else:
+
         print("Aún no se ha programado para %s" % tipo_am)
-    return C
+
+    data['C'] = C
+
+    data_file = open('./Data', 'wb')
+    pickle.dump(data, data_file)
+    data_file.close()
 
 
-def MDOF_LTH(K, M, C, ug, dt, γ=1 / 2, β=1 / 4, gdl=0):
+def MDOF_LTH(ug, dt, γ=1 / 2, β=1 / 4, gdl=0):
     ''' 
     Función que estima la respuesta dinámica lineal de una estructura a través del método de newmark usando la formulación incremental.
         Input:
@@ -2033,42 +2107,58 @@ def MDOF_LTH(K, M, C, ug, dt, γ=1 / 2, β=1 / 4, gdl=0):
             a:  Matriz que contiene las aceleraciones de gdl nodos en el tiempo
         '''
     from numpy.linalg import inv
-    #
+
+    data = open_data()
+    M = data['Mr']
+    K = data['Kr']
+    C = data['C']
+
+    # Número de grados de libertad
+    # Number of degree of freedom
+
     n = len(M)
+
+    # Número de pasos en el registro
+    # Number of steps in the record
+
     ns = len(ug)
+
+    # Definen matrices que contendrán los desplazamientos, velocidades y aceleraciones de todos los grados de libertad
+    # Defines matrices that contain the displacement, velocities, and accelerations of the degrees of freedom.
+
     dx = np.zeros((ns + 1, n))
     d = np.zeros((ns + 1, n))
     v = np.zeros((ns + 1, n))
     a = np.zeros((ns + 1, n))
     df = np.zeros((ns + 1, n))
-    #
+
     df[0] = 0
     df[1] = -(ug[1] - ug[0])
-    #
+
     c1 = 1 - γ / β
     c2 = γ / (β * dt)
     c3 = dt * (1 - γ / (2 * β))
-    #
+
     a1 = M / (β * dt**2) + γ * C / (β * dt) + K
     a2 = M / (β * dt) + γ * C / β
     a3 = M / (2 * β) - dt * (1 - γ / (2 * β)) * C
     I = np.ones(n) * 0
     I[gdl::2] = 1.0
     MI = M @ I
-    #
+
     # Solución de la ecuación diferencial
     for i in range(1, ns):
         if i % 100 == 0: print("Paso:\t%s\nTiempo:\t%s(s)" % (i, i * dt))
         dx[i] = inv(a1) @ (a2 @ v[i - 1] + a3 @ a[i - 1] + MI * df[i])
-        #
+
         d[i] = d[i - 1] + dx[i]
         v[i] = c1 * v[i - 1] + c2 * dx[i] + c3 * a[i - 1]
         a[i] = -inv(M) @ (C @ v[i] + K @ d[i] + MI * ug[i])
-        #
+
         df[i] = -(ug[i] - ug[i - 1])
 
-    data = open_data()
     # Guardar d, v y a con piclke
+
     data['d'] = d
     data['v'] = v
     data['a'] = a
@@ -2076,8 +2166,6 @@ def MDOF_LTH(K, M, C, ug, dt, γ=1 / 2, β=1 / 4, gdl=0):
     data_file = open('./Data', 'wb')
     pickle.dump(data, data_file)
     data_file.close()
-
-    return d, v, a
 
 
 def dinamic_plot(u=[], FS=15):
@@ -2090,6 +2178,10 @@ def dinamic_plot(u=[], FS=15):
     Nodes = data['Nodes']
     L = data['L']
     H = data['H']
+    n_dof_to_reduce = len(data['dof_to_reduce'])
+    d = data['d']
+
+    u = np.hstack((np.zeros((d.shape[0], n_dof_to_reduce)), d))
 
     aux = np.array([])
     aux_1 = np.array([])
@@ -2117,7 +2209,8 @@ def dinamic_plot(u=[], FS=15):
             aux = np.append(aux, 2 * Connect[i][0] + 1)
             aux_1 = np.append(aux_1, Connect[i])
             aux_1 = np.append(aux_1, Connect[i][0])
-
+    print('u.shape', u.shape)
+    print('aux.shape', aux.shape)
     Dq_din = np.zeros((u.shape[0], aux.shape[0]))
     Nodes_din = np.zeros((aux_1.shape[0], Nodes.shape[1]))
     print('aux', aux)
