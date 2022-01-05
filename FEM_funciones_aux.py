@@ -2209,14 +2209,9 @@ def dinamic_plot(u=[], FS=15):
             aux = np.append(aux, 2 * Connect[i][0] + 1)
             aux_1 = np.append(aux_1, Connect[i])
             aux_1 = np.append(aux_1, Connect[i][0])
-    print('u.shape', u.shape)
-    print('aux.shape', aux.shape)
     Dq_din = np.zeros((u.shape[0], aux.shape[0]))
     Nodes_din = np.zeros((aux_1.shape[0], Nodes.shape[1]))
-    print('aux', aux)
-    print('Dq_din', Dq_din.shape)
 
-    print('u.shape', u.shape)
     for i, value in enumerate(aux):
         Dq_din[:, i] = u[:, int(value)]
 
