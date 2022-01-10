@@ -589,7 +589,6 @@ def NC_node(xyz=(1, 1), force=0, dof=(1), lim=0.001):
     # Array elements area grouped vertically (dof=1, dof =2, dof =3)
 
     vector = np.vstack(tuple(dic_vector.values()))
-    print(vector)
     if 'BC_data' in data.keys():
         data['BC_data'] = np.unique(np.vstack((data['BC_data'], vector)),
                                     axis=0)
@@ -1408,7 +1407,6 @@ def AssembleMatrix(MatrixType):
             # Evalua el PDE (Elasticidad, Timoshenko, Bernoulli, etc.)
             # Evaluate the PDE (Elasticity, Timoshenko, Bernoulli, etc.)
             A_int = eval(PDE + '(A_int, x_element, N, dN,ddN, dX, MatrixType)')
-            print('A_int = ', A_int)
             A_e = A_e + A_int
 
         # Mapea los grados de libertad
