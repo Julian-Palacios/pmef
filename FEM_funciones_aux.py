@@ -2057,6 +2057,36 @@ def plot_model_deform(dir='x', FS=1):
     plt.close()
 
 
+def Modal_Analysis():
+
+    from scipy.linalg import eigh
+    data = open_data()
+    SpaceDim = data['SpaceDim']
+
+    if SpaceDim == 1:
+
+        K = data['K']
+        M = data['M']
+
+        Kb, Mb = np.array(K.todense()), np.array(M.todense())
+        vals, vecs = eigh(Kb[2:, 2:], Mb[2:, 2:])
+
+    elif SpaceDim == 2:
+
+        Mr = data['Mr']
+        Kr = data['Kr']
+        n_dof_to_reduce = len(data['dof_to_reduce'])
+
+        vals, vecs = eigh(Kr, Mr)
+        vecs = np.vstack((np.zeros((n_dof_to_reduce, len(vecs))), vecs))
+    print('vecs = ', vecs)
+    data['vecs'] = vecs
+
+    data_file = open('./Data', 'wb')
+    pickle.dump(data, data_file)
+    data_file.close()
+
+
 def plot_modes(mode=1, FS=1):
 
     import matplotlib.cm
@@ -2129,8 +2159,7 @@ def plt_modes_1D(mode=1, FS=1):
 
     from scipy.interpolate import make_interp_spline
 
-    vecs = data['vecs'][mode - 1]
-
+    vecs = data['vecs'][:, mode - 1]
     xB = data['Nodes']
     yB = np.hstack(([0], vecs[1::2]))
 
@@ -2142,36 +2171,6 @@ def plt_modes_1D(mode=1, FS=1):
     plt.plot(yB_new, xB_new, 'k-')
     plt.plot(yB, xB, 'ro')
     plt.show()
-
-
-def Modal_Analysis():
-
-    from scipy.linalg import eigh
-    data = open_data()
-    SpaceDim = data['SpaceDim']
-
-    if SpaceDim == 1:
-
-        K = data['K']
-        M = data['M']
-
-        Kb, Mb = np.array(K.todense()), np.array(M.todense())
-        vals, vecs = eigh(Kb[2:, 2:], Mb[2:, 2:])
-
-    elif SpaceDim == 2:
-
-        Mr = data['Mr']
-        Kr = data['Kr']
-        n_dof_to_reduce = len(data['dof_to_reduce'])
-
-        vals, vecs = eigh(Kr, Mr)
-        vecs = np.vstack((np.zeros((n_dof_to_reduce, len(vecs))), vecs))
-
-    data['vecs'] = vecs
-
-    data_file = open('./Data', 'wb')
-    pickle.dump(data, data_file)
-    data_file.close()
 
 
 def AssemblyDamping(ζ=0.05, tipo_am="Rayleigh"):
