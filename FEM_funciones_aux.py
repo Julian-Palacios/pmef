@@ -64,19 +64,31 @@ def ProblemData(SpaceDim=2, pde='Elasticity'):
 
 def ElementData(elemDof=2,
                 elemNodes=4,
-                elemInt=4,
+                elem_noInt=4,
+                bb=1,
+                bh=1,
+                thickness=0.5,
+                fy=0,
                 elemType="Quad4",
-                massInt=4,
+                mass_noInt=4,
                 massMat='lumped'):
 
     data = open_data()
 
     data['elem_dof'] = elemDof
     data['elem_nodes'] = elemNodes
-    data['elem_noInt'] = elemInt
+    data['elem_noInt'] = elem_noInt
+    data['bb'] = bb
+    data['bh'] = bh
+    data['thickness'] = thickness
+    data['fy'] = fy
+
     data['elem_type'] = elemType
-    data['mass_noInt'] = massInt
+    data['mass_noInt'] = mass_noInt
     data['mass_Mat'] = massMat
+
+    data['AreaSec'] = bb * bh
+    data['I'] = bb * bh**3 / 12.0
 
     data_file = open('./Data', 'wb')
     pickle.dump(data, data_file)
@@ -85,19 +97,68 @@ def ElementData(elemDof=2,
 
 def ModelData(E=1,
               v=0.25,
-              thickness=0.5,
+              G=0,
+              GAs=0,
               density=2400 * kg / m**3,
               selfWeight=0.0,
               gravity=[0.0, -1.0, 0.0]):
 
     data = open_data()
-    # Agragar a Data los datos del modelo
+    # Agregarr a Data los datos del modelo
     data['E'] = E
     data['v'] = v
-    data['thickness'] = thickness
+    data['G'] = G
+    data['GAs'] = GAs
+
     data['density'] = density
     data['selfWeight'] = selfWeight
     data['gravity'] = np.array(gravity)
+
+    data_file = open('./Data', 'wb')
+    pickle.dump(data, data_file)
+    data_file.close()
+
+
+def GenLinearMesh(L, N):
+    '''
+    Define los nodos y conexiones de un Mesh especificado para un elemento finito en 1D.
+    Defines the nodes and connections of a specified mesh for a Finite Element in 1D.
+    Input
+        L   : Longitud total de la estructura.
+        L   : Total length of the structure
+        N   : Cantidad de elementos en las que se dividirá la estructura     
+        N   : Number of element into which the structure will be divided
+    '''
+    # Número de subelementos
+    # Number of sub-elements
+
+    L_element = L / N
+
+    print('=' * 7 + 'Mesh' + '=' * 7)
+    print("nx = {}, dx = {:.2f}".format(
+        N,
+        L_element,
+    ))
+
+    # Define la cantidad de nodos
+    # Defines the number of nodes
+
+    Nodes = np.zeros(N + 1)
+
+    for i in range(N + 1):
+
+        Nodes[i] = i * L_element
+
+    connect = np.zeros((N, 2), dtype=np.uint8)
+
+    connect[:, 0], connect[:, 1] = range(N), range(1, N + 1)
+
+    data = open_data()
+    data['NN'] = len(Nodes)
+    data['Nodes'] = Nodes
+    data['NC'] = len(connect)
+    data['Connect'] = connect
+    data['Len_beam'] = L
 
     data_file = open('./Data', 'wb')
     pickle.dump(data, data_file)
@@ -442,7 +503,6 @@ def DC_nodes(dir='x', dist=0, dof=[1, 2], lim=0.001):
     # Array elements are grouped vertically (dof=1, dof =2)
 
     vector = np.vstack(tuple(dic_vector.values()))
-    print(vector)
 
     if 'BC_data' in data.keys():
 
@@ -615,6 +675,114 @@ def NC_nodes(dir='x', dist=0, force=1000, dof=(1, 2), lim=0.001):
     data_file.close()
 
 
+def DC_node_beam(x=(0), dof=(1, 2), lim=0.001):
+    '''
+    Retorna un arreglo con la información para definir las condiciones de  Dirichlet de un nodo
+    Return an array with information to define Dirichlet condition of a node
+
+    xy      : Posición del nodo 
+    gdl     : Grados de libertad que se restringirán
+    lim     : Tolerancia en metros
+
+    dir     : Node position
+    gld     : Degrees of freedom to restrict
+    lim     : tolerance in meters
+
+    '''
+
+    # Lee el archivo Data
+    # Reading Data file
+
+    data = open_data()
+    Nodes = data['Nodes']
+
+    # Crea el diccionario dic_vector
+    # dic_vector dictionary is created
+
+    dic_vector = {}
+
+    for i in dof:
+
+        aux = np.where(abs(Nodes - x) < lim)
+
+        vector = np.hstack((aux, [[1, i, 0]] * len(aux[0])))
+        dic_vector.update({i: vector})
+
+    # Se agrupan verticalmente los elementos array (dof=1, dof =2)
+    # Array elements area grouped vertically (dof=1, dof =2)
+
+    vector = np.vstack(tuple(dic_vector.values()))
+
+    if 'BC_data' in data.keys():
+
+        data['BC_data'] = np.unique(np.vstack((data['BC_data'], vector)),
+                                    axis=0)
+
+    else:
+
+        data['BC_data'] = np.unique(vector, axis=0)
+
+    # Se agrega los parámetros calculados al diccionario Data
+    # The calculate parameters are added to the Data dictionary
+
+    data_file = open('./Data', 'wb')
+    pickle.dump(data, data_file)
+    data_file.close()
+
+
+def NC_node_beam(x=(1, 1), force=0, dof=(1), lim=0.001):
+    '''
+    Retorna un arreglo con la información para definir las condiciones de  Neumann de un nodo
+    Return a array with information to define Neumann condition of a node
+
+    xy      : Posición del nodo 
+    gdl     : Grados de libertad que se restringirán
+    lim     : Tolerancia en metros
+
+    dir     : Node position
+    gld     : Degrees of freedom to restrict
+    lim     : tolerance in meters
+
+    '''
+
+    # Lee el archivo Data
+    # Reading Data file
+
+    data = open_data()
+    Nodes = data['Nodes']
+
+    # Crea el diccionario dic_vector
+    # dic_vector dictionary is created
+
+    dic_vector = {}
+
+    for i in dof:
+
+        aux = np.where(abs(Nodes - x) < lim)
+
+        vector = np.hstack((aux, [[0, i, force]] * len(aux[0])))
+
+        dic_vector.update({i: vector})
+
+    # Se agrupan verticalmente los elementos array (dof=1, dof =2)
+    # Array elements area grouped vertically (dof=1, dof =2)
+
+    vector = np.vstack(tuple(dic_vector.values()))
+
+    if 'BC_data' in data.keys():
+        data['BC_data'] = np.unique(np.vstack((data['BC_data'], vector)),
+                                    axis=0)
+    else:
+        data['BC_data'] = np.unique(vector, axis=0)
+
+    # Se agrega los parámetros calculados al diccionario Data
+    # The calculate parameters are added to the Data dictionary
+
+    data_file = open('./Data', 'wb')
+    pickle.dump(data, data_file)
+    data_file.close()
+
+
 def ShapeFunction(X, gp, elem_type):
     '''
     Define funciones de forma y sus derivadas en coordenadas naturales para un elemento finito de coordenadas X, N(X)=N(xi),dN(X)=dN(xi)*J-1
@@ -723,121 +891,175 @@ def ShapeFunction(X, gp, elem_type):
     return N, dN, ddN, j
 
 
-def Bernoulli(A, x, N, dN, ddN, ProblemData, ElementData, ModelData, dX, tipo):
-    '''Función que retorna la matriz de un EF evaluado en un Punto de Gauss
+def Bernoulli(A, X, N, dN, ddN, dX, matrix_type):
     '''
-    n = elem_nodes
-    m = elem_dof
-    EI = EI
-    Area = Area
-    ##
-    if tipo == 'MatrizK':
-        A = EI * ddN @ ddN.T
+    Retorna la matriz de un EF evaluado en un Punto de Gauss
+    Return the matrix of the EF evaluated at a Gauss Point
+
+    Input:
+
+        X               : Arreglo que contiene las coordenadas del EF.
+        X               : Array containing the coordinates of the EF.
+        N               : Arreglo que contiene las funciones de forma.
+        N               : Array containing the Shape Functions
+        dN              : Arreglo que contiene las derivadas parciales de las funciones de forma.
+        dN              : Array containing the partial derivate of the Shape functions
+        ddN             : Arreglo que contiene las segundas derivadas parciales de las funciones de forma.
+        ddN             : Array containing the second partial derivates of the Shape function 
+        dX              :   
+        matriz_type     : Texto que indica que arreglo se quiere obtener. Ejem: MatrizK, VectorF, MasaConsistente, MasaConcentrada
+        matriz_type     : Texto que indica que arreglo se quiere obtener. Ejem: MatrizK, VectorF, MasaConsistente, MasaConcentrada
+
+        
+    Output:
+
+        A       : Matriz de elemento finito
+        A       : Finite element matrix
+    '''
+    data = open_data()
+
+    n = data['elem_nodes']
+    m = data['elem_dof']
+    E = data['E']
+    I = data['I']
+    bb = data['bb']
+    bh = data['bh']
+    Area = bb * bh
+    EI = E * I
+    ρ = data['density']
+    fy = data['fy']
+
+    if matrix_type == 'MatrixK':
+
+        A = EI * ddN.T @ ddN
         A = A * dX
 
-    elif tipo == 'MasaConsistente':
-        rho = density
-        A = rho * N @ N.T * dX * Area
-        ##
-    elif tipo == 'MasaConcentrada':
-        rho = density
-        B = rho * N @ N.T * dX * Area
-        ##
-        one = np.zeros(m * n)
-        one[:] = 1.0
+    elif matrix_type == 'ConsistentMass':
+
+        A = ρ * N.T @ N * dX * Area
+    #
+    elif matrix_type == 'ConcentratedMass':
+
+        B = ρ * N.T @ N * dX * Area
+        one = np.zeros(m * n) + 1.0
         B = B @ one
         A = np.zeros((m * n, m * n))
+
         # Concentrando Masas (Mejorar proceso si |A| <= 0)
+
         for i in range(m * n):
             A[i, i] = B[i]
-        ##
-    elif (tipo == 'VectorF'):
+    #
+    elif matrix_type == 'VectorF':
+
         # Formando matriz N para v
-        N_v = np.zeros((m * n, 1))
+
+        N_v = np.zeros((1, m * n))
+
         N_v = N
-        A = np.zeros((m * n, 1))
+
+        A = np.zeros((1, m * n))
+
         f = fy
-        A = N_v.T * f * dX
+
+        A = N_v * f * dX
         ##
     else:
-        print("Debes programar para el tipo %s aún" % tipo)
+
+        print("Debes programar para el tipo %s aún" % matrix_type)
+
     return A
 
 
-def Timoshenko(A, x, N, dN, ddN, ProblemData, ElementData, ModelData, dX,
-               tipo):
+def Timoshenko(A, X, N, dN, ddN, dX, matrix_type):
     '''Función que retorna la matriz de un EF evaluado en un Punto de Gauss
     '''
-    n = elem_nodes
-    m = elem_dof
-    EI = EI
+    data = open_data()
+
+    n = data['elem_nodes']
+    m = data['elem_dof']
+    E = data['E']
+    I = data['I']
+    EI = E * I
+    GAs = data['GAs']
     GAs = GAs
-    Area = Area
+    bb = data['bb']
+    bh = data['bh']
+    fy = data['fy']
+
+    Area = bb * bh
+    fy = data['fy']
+    ρ = data['density']
+
+    SpaceDim = data['SpaceDim']
+
     ##
-    if tipo == 'MatrizK':
+    if matrix_type == 'MatrixK':
+
         if (SpaceDim == 1):
             # Formando N para theta
             N_theta = np.zeros((1, m * n))
-            N_theta[0, 0::m] = N[:, 0].T
+            N_theta[0, 0::m] = N[0]
             # Formando N para v
             N_v = np.zeros((1, m * n))
-            N_v[0, 1::m] = N[:, 0].T
+            N_v[0, 1::m] = N[0]
             # Formando B para theta
             B_theta = np.zeros((1, m * n))
-            B_theta[0, 0::m] = dN[:, 0].T
+            B_theta[0, 0::m] = dN[0]
             # Formando B para for v
             B_v = np.zeros((1, m * n))
-            B_v[0, 1::m] = dN[:, 0].T
-            ##
+            B_v[0, 1::m] = dN[0]
+            #
         elif (SpaceDim == 2):
             print('Solo es válido para 1D')
         elif (SpaceDim == 3):
             print('Solo es válido para 1D')
-        ##
+            #
         # Calculando Matriz
         A = B_theta.T * EI @ B_theta + N_theta.T * GAs @ N_theta - N_theta.T * GAs @ B_v
         A = A - B_v.T * GAs @ N_theta + B_v.T * GAs @ B_v
         A = A * dX
-    ##
-    elif tipo == 'MasaConsistente':
-        rho = density
-        nulo = np.array([0])
-        N = np.array([nulo, N[0], nulo, N[1]])
-        A = rho * N @ N.T * dX * Area
-        # Artificio para no obtener una Matriz singular
+
+    elif matrix_type == 'ConsistentMass':
+
+        Nv = np.zeros((1, m * n))
+        Nv[0, 0], Nv[0, 1], Nv[0, 2], Nv[0, 3] = 0, N[0, 0], 0, N[0, 1]
+        A = ρ * Nv.T @ Nv * dX * Area
+        #
+        #  Artificio para no obtener una Matriz singular
         A[0, 0] = A[0, 0] + 0.01 * A[1, 1]
         A[2, 2] = A[2, 2] + 0.01 * A[3, 3]
-    ##
-    elif tipo == 'MasaConcentrada':
-        rho = density
+
+    elif matrix_type == 'ConcentratedMass':
+
         nulo = np.array([0])
-        N = np.array([nulo, N[0], nulo, N[1]])
-        B = rho * N @ N.T * dX * Area
+        Nv[0, 0], Nv[0, 1], Nv[0, 2], Nv[0, 3] = 0, N[0, 0], 0, N[0, 1]
+        B = ρ * Nv.T @ Nv * dX * Area
         # Artificio para no obtener una Matriz singular
         B[0, 0] = B[0, 0] + 0.01 * B[1, 1]
         B[2, 2] = B[2, 2] + 0.01 * B[3, 3]
-        ##
-        one = np.zeros(m * n)
-        one[:] = 1.0
+        #
+        one = np.zeros(m * n) + 1.0
         B = B @ one
         A = np.zeros((m * n, m * n))
         # Concentrando Masas
         for i in range(m * n):
             A[i, i] = B[i]
 
-    elif (tipo == 'VectorF'):
+    elif (matrix_type == 'VectorF'):
+
         # Formando matriz N para theta
         N_theta = np.zeros((1, m * n))
-        N_theta[0, 0::m] = N[:, 0].T
+        N_theta[0, 0::m] = N[0]
         # Formando matriz N para v
         N_v = np.zeros((1, m * n))
-        N_v[0, 1::m] = N[:, 0].T
+        N_v[0, 1::m] = N[0]
         #
-        f = f
+        f = fy
         A = N_v * f * dX
 
     else:
-        print("Debes programar para el tipo %s aún" % tipo)
+        print("Debes programar para el tipo %s aún" % matrix_type)
     return A
 
 
@@ -1133,6 +1355,11 @@ def AssembleMatrix(MatrixType):
     Connect = data['Connect']
     PDE = data['pde']
 
+    if MatrixType == 'MatrixK':
+        elem_noInt = data['elem_noInt']
+    else:
+        elem_noInt = data['mass_noInt']
+
     # Calcula el número de grados de libertad totales y el número de grados de libertad por cada elemento
     # Calculates the total number of degrees of freedom and the number of degree of freedom per element
 
@@ -1154,7 +1381,6 @@ def AssembleMatrix(MatrixType):
     # Gets the weight and position of the Gauss Quadrature
 
     gp = GaussQuadrature(elem_noInt, SpaceDim)
-
     # Bucle para ensamblar la matriz de cada elemento
     # Loop to assembly the matriz of each element
 
@@ -1172,7 +1398,6 @@ def AssembleMatrix(MatrixType):
 
             # Calcula las Funciones de Forma
             # Calculates the Shape Funtions
-
             [N, dN, ddN, j] = ShapeFunction(x_element, gauss_point, elem_type)
 
             # Calculando la Matriz de cada Elemento
@@ -1182,9 +1407,8 @@ def AssembleMatrix(MatrixType):
 
             # Evalua el PDE (Elasticidad, Timoshenko, Bernoulli, etc.)
             # Evaluate the PDE (Elasticity, Timoshenko, Bernoulli, etc.)
-
             A_int = eval(PDE + '(A_int, x_element, N, dN,ddN, dX, MatrixType)')
-
+            print('A_int = ', A_int)
             A_e = A_e + A_int
 
         # Mapea los grados de libertad
@@ -1219,6 +1443,16 @@ def AssembleMatrix(MatrixType):
         data_file.close()
 
     elif MatrixType == "ConcentratedMass":
+
+        data['M'] = A
+
+        print("Matriz M calculada")
+
+        data_file = open('./Data', 'wb')
+        pickle.dump(data, data_file)
+        data_file.close()
+
+    elif MatrixType == "ConsistentMass":
 
         data['M'] = A
 
@@ -1305,7 +1539,6 @@ def AssembleVector():
             # Evaluate the PDE (Elasticity, Timoshenko, Bernoulli, etc.)
 
             f_int = eval(PDE + '(f_int, x_element, N, dN, ddN, dX, "VectorF")')
-
             f_e = f_e + f_int
 
         # Mapea los grados de libertad
@@ -1319,7 +1552,6 @@ def AssembleVector():
         f[dof] = f[dof] + f_e
 
         f_e = 0.0
-
     data['f'] = f
 
     data_file = open('./Data', 'wb')
@@ -1337,13 +1569,10 @@ def ApplyBC():
     data = open_data()
 
     elem_dof = data['elem_dof']
-    print('elem_dof', elem_dof)
     BC_data = data['BC_data']
     A = data['K']
     f = data['f']
     dof_to_reduce = []
-
-    print(BC_data)
 
     for bc in BC_data:
 
@@ -1675,6 +1904,25 @@ def plot_model_mesh_3D():
     plt.close()
 
 
+def plt_model_deform_1D(FS=1):
+    data = open_data()
+
+    from scipy.interpolate import make_interp_spline
+
+    u = data['u']
+    xB = data['Nodes']
+    yB = u[1::2]
+
+    xB_new = np.linspace(min(xB), max(xB), 100)
+    a_BSpline = make_interp_spline(xB, yB)
+    yB_new = a_BSpline(xB_new)
+
+    import matplotlib.pyplot as plt
+    plt.plot(yB_new, xB_new, 'k-')
+    plt.plot(yB, xB, 'ro')
+    plt.show()
+
+
 def plot_model_deform_3D(FS=1000):
 
     data = open_data()
@@ -1811,123 +2059,6 @@ def plot_model_deform(dir='x', FS=1):
     plt.close()
 
 
-def plot_model_deform_TH(dir, FS):
-    data = open_data()
-    ug = np.genfromtxt("./INPUT/Lima66NS.txt") / 100  # de cm/s2 a m/s2
-    Dq = data['d']
-    Nodos = data['Nodos']
-    import matplotlib.cm as cm
-
-    # Factor de Amplificación
-
-    # vec = vecs[:, mi]
-    # vec_Quad = V_insertor(vec, [0, 1, 2, 3])
-    # Modo_Quad = POS.Deformada(Mesh_Quad, vec_Quad, FS)
-
-    # import matplotlib.cm as cm
-    # ##
-    # data = open_data()
-
-    # Conex = data['Conex']
-    # d = data['d']
-    # print(d.shape)
-
-    # for i in range(1000):
-    #     u = d[i].T
-
-    #     print(u)
-    #     print(u.shape)
-
-    #     X_Def, X_incr = Deformada(u, FS)
-    #     print(X_Def)
-
-    # # line1, = ax.plot([], [], 'r', label="Bern")
-    # # line2, = ax.plot([], [], 'b--', label="Timo")
-    # line3, = ax.plot([], [], 'ko', markersize=0.7, label="Quad")
-    # ax.legend(loc='upper right')
-    ug = np.genfromtxt("./INPUT/Lima66NS.txt") / 100
-    data = open_data()
-
-    Conex = data['Conex']
-    u = data['d']
-    Nodos = data['Nodos']
-    maximo = 0
-
-    for i in range(len(ug)):
-        u = ug[i].T
-        vec = V_insertor(Dq[i])
-        X_Def, X_incr = Deformada(vec, FS)
-
-        if max(abs(X_Def[:, 1])) > maximo:
-            maximo = max(abs(X_Def[:, 1]))
-
-    for i in range(300):
-
-        vec = V_insertor(Dq[i])
-        X_Def, X_incr = Deformada(vec, FS)
-
-        # line3.set_xdata(X_Def[:, 0] - 0.25)
-        # line3.set_ydata(X_Def[:, 1])
-
-        # # FEM data
-        nodes_x = X_Def[:, 0] - 0.25
-        nodes_y = X_Def[:, 1]
-
-        if dir == 'x':
-            nodal_values = X_incr[:, 0]
-        else:
-            nodal_values = X_incr[:, 1]
-
-        nodes_x = X_Def[:, 0] - 0.25
-
-        elements_quads = Conex
-
-        elements_all_tris = quads_to_tris(elements_quads)
-
-        # create an unstructured triangular grid instance
-        triangulation = tri.Triangulation(nodes_x, nodes_y, elements_all_tris)
-
-        for element in elements_quads:
-
-            x_aux = nodes_x[element]
-            y_aux = nodes_y[element]
-            wframe_1 = plt.fill(x_aux,
-                                y_aux,
-                                edgecolor='black',
-                                fill=False,
-                                linewidth=0.2)
-
-        plt.tricontourf(triangulation, abs(nodal_values), cmap="RdBu_r")
-
-        # Ocultar los valores de los ejes
-        plt.axis('off')
-
-        # norm = colors.Normalize(vmin=min(nodal_values / FS),
-        #                         vmax=max(nodal_values / FS))
-
-        norm = colors.Normalize(vmin=0, vmax=maximo / FS)
-
-        plt.colorbar(cm.ScalarMappable(norm=norm, cmap="RdBu_r"),
-                     orientation='horizontal',
-                     label='Deformación (m)')
-
-        plt.axis('equal')
-        # limites en x e y
-        plt.xlim(-0.8, 0.8)
-        plt.ylim(-0.25, 6)
-        plt.title("%5.2f(s)" % (i * 0.02))
-        # ocultar los valores de los ejes
-        plt.axis('off')
-
-        # plt.set_title("%5.2f(s)" % (i * 0.02))
-        plt.savefig(
-            r'C:\Users\RICK\Desktop\Nueva carpeta\Nueva carpeta\Model_Deformada_TH_{:05}.png'
-            .format(i),
-            dpi=300)
-
-        plt.close()
-
-
 def plot_modes(mode=1, FS=1):
 
     import matplotlib.cm
@@ -1994,18 +2125,49 @@ def plot_modes(mode=1, FS=1):
     plt.close()
 
 
-def Modal_Analysis():
-
-    from scipy.linalg import eigh
+def plt_modes_1D(mode=1, FS=1):
 
     data = open_data()
 
-    Mr = data['Mr']
-    Kr = data['Kr']
-    n_dof_to_reduce = len(data['dof_to_reduce'])
+    from scipy.interpolate import make_interp_spline
 
-    vals, vecs = eigh(Kr, Mr)
-    vecs = np.vstack((np.zeros((n_dof_to_reduce, len(vecs))), vecs))
+    vecs = data['vecs'][mode - 1]
+
+    xB = data['Nodes']
+    yB = np.hstack(([0], vecs[1::2]))
+
+    xB_new = np.linspace(min(xB), max(xB), 100)
+    a_BSpline = make_interp_spline(xB, yB)
+    yB_new = a_BSpline(xB_new)
+
+    import matplotlib.pyplot as plt
+    plt.plot(yB_new, xB_new, 'k-')
+    plt.plot(yB, xB, 'ro')
+    plt.show()
+
+
+def Modal_Analysis():
+
+    from scipy.linalg import eigh
+    data = open_data()
+    SpaceDim = data['SpaceDim']
+
+    if SpaceDim == 1:
+
+        K = data['K']
+        M = data['M']
+
+        Kb, Mb = np.array(K.todense()), np.array(M.todense())
+        vals, vecs = eigh(Kb[2:, 2:], Mb[2:, 2:])
+
+    elif SpaceDim == 2:
+
+        Mr = data['Mr']
+        Kr = data['Kr']
+        n_dof_to_reduce = len(data['dof_to_reduce'])
+
+        vals, vecs = eigh(Kr, Mr)
+        vecs = np.vstack((np.zeros((n_dof_to_reduce, len(vecs))), vecs))
 
     data['vecs'] = vecs
 
@@ -2038,9 +2200,20 @@ def AssemblyDamping(ζ=0.05, tipo_am="Rayleigh"):
     import math
 
     data = open_data()
+    elemType = data['elem_type']
 
-    K = data['Kr']
-    M = data['Mr']
+    if elemType == 'Q4':
+
+        K = data['Kr']
+        M = data['Mr']
+
+    else:
+        M = data['M']
+        K = data['K']
+        Mb = np.array(M.todense())
+        Kb = np.array(K.todense())
+        M = Mb[2:, 2:]
+        K = Kb[2:, 2:]
 
     vals, vecs = eigh(K, M)
     T = 2 * np.pi / vals
@@ -2090,7 +2263,7 @@ def AssemblyDamping(ζ=0.05, tipo_am="Rayleigh"):
     data_file.close()
 
 
-def MDOF_LTH(ug, dt, γ=1 / 2, β=1 / 4, gdl=0):
+def MDOF_LTH(ug, dt, γ=1 / 2, β=1 / 4, gdl=1):
     ''' 
     Función que estima la respuesta dinámica lineal de una estructura a través del método de newmark usando la formulación incremental.
         Input:
@@ -2109,8 +2282,19 @@ def MDOF_LTH(ug, dt, γ=1 / 2, β=1 / 4, gdl=0):
     from numpy.linalg import inv
 
     data = open_data()
-    M = data['Mr']
-    K = data['Kr']
+    elemType = data['elem_type']
+
+    if elemType == 'Q4':
+        M = np.array(data['Mr'])
+        K = np.array(data['Kr'])
+    else:
+        M = data['M']
+        K = data['K']
+        Mb = np.array(M.todense())
+        Kb = np.array(K.todense())
+        M = Mb[2:, 2:]
+        K = Kb[2:, 2:]
+
     C = data['C']
 
     # Número de grados de libertad
@@ -2131,30 +2315,34 @@ def MDOF_LTH(ug, dt, γ=1 / 2, β=1 / 4, gdl=0):
     v = np.zeros((ns + 1, n))
     a = np.zeros((ns + 1, n))
     df = np.zeros((ns + 1, n))
-
+    #
     df[0] = 0
     df[1] = -(ug[1] - ug[0])
-
+    #
     c1 = 1 - γ / β
     c2 = γ / (β * dt)
     c3 = dt * (1 - γ / (2 * β))
-
+    #
     a1 = M / (β * dt**2) + γ * C / (β * dt) + K
     a2 = M / (β * dt) + γ * C / β
     a3 = M / (2 * β) - dt * (1 - γ / (2 * β)) * C
+
     I = np.ones(n) * 0
     I[gdl::2] = 1.0
     MI = M @ I
 
     # Solución de la ecuación diferencial
     for i in range(1, ns):
-        if i % 100 == 0: print("Paso:\t%s\nTiempo:\t%s(s)" % (i, i * dt))
+        if i % 100 == 0:
+            print("Paso:\t%s\nTiempo:\t%s(s)" % (i, i * dt))
+
         dx[i] = inv(a1) @ (a2 @ v[i - 1] + a3 @ a[i - 1] + MI * df[i])
 
+        #
         d[i] = d[i - 1] + dx[i]
         v[i] = c1 * v[i - 1] + c2 * dx[i] + c3 * a[i - 1]
         a[i] = -inv(M) @ (C @ v[i] + K @ d[i] + MI * ug[i])
-
+        #
         df[i] = -(ug[i] - ug[i - 1])
 
     # Guardar d, v y a con piclke
@@ -2168,7 +2356,7 @@ def MDOF_LTH(ug, dt, γ=1 / 2, β=1 / 4, gdl=0):
     data_file.close()
 
 
-def dinamic_plot(u=[], FS=15):
+def dinamic_plot(FS=15):
 
     from matplotlib import animation, rc
 
@@ -2252,6 +2440,40 @@ def dinamic_plot(u=[], FS=15):
                                   interval=100,
                                   blit=True)
     ani.save('animacion.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
+    plt.show()
+
+
+def dinamic_plot_1D(label='Bern', FS=15):
+
+    data = open_data()
+
+    d = data['d']
+    xB = data['Nodes']
+    Len_beam = data['Len_beam']
+
+    fig = plt.figure(figsize=(3, 10))
+    ax = fig.add_subplot(111)
+    line1, = ax.plot([], [], 'ko-', markersize=5, label=label)
+    ax.legend(loc='upper right')
+    ax.set_xlim(-Len_beam / 20, Len_beam / 20)
+    ax.set_ylim(0, Len_beam + 1)
+
+    #
+    def anima(i, factor):
+        line1.set_xdata(np.insert(d[i][1::2], 0, 0) * factor)
+        line1.set_ydata(xB)
+        ax.set_title("%5.2f(s)" % (i * 0.02))
+        return line1,
+
+    #
+    ani = animation.FuncAnimation(fig,
+                                  anima,
+                                  frames=len(d) - 1,
+                                  fargs=(FS, ),
+                                  interval=100,
+                                  blit=True)
+    ani.save('animacion.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
+
     plt.show()
 
 
