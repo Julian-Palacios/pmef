@@ -1,10 +1,14 @@
 ## PMEF
-## Programando el Método de Elementos Finitos en Python
+## Programando el Método de Elementos Finitos
 
-Código creado en el año 2020 por Julian Palacios (jpalaciose@uni.pe)
+Librería creada en el año 2020 por Julian Palacios (jpalaciose@uni.pe)
 
-Con la colaboración de Jorge Lulimachi (jlulimachis@uni.pe)
+Con la colaboración de:
 
-Codificado para la clase FICP-C811 en la UNI, Lima, Perú
+Jorge Lulimachi (jlulimachis@uni.pe)
+Humberto Rojas (humberto.rojas.h@uni.pe)
+Luis Baldeon (luis.baldeon.c@uni.pe)
 
-Este código se basó en las rutinas de matlab FEMCode realizado inicialmente por Garth N .Wells (2005) para la clase CT5123 en TU Delft, Países Bajos
+Cabe resaltar que este código se basó en las rutinas de matlab FEMCode realizado por Garth N .Wells (2005) para la clase CT5123 en TU Delft, Países Bajos.
+
+Librería desarrollada para enseñar a Programar el Método de Elementos Finitos en JPI Ingeniería (jpi-ingenieria.com).
