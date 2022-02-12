@@ -136,7 +136,7 @@ def Elasticidad(A, X, N, dN,dNN, ProblemData, ElementData, ModelData, dX, tipo):
     #
     if tipo == 'MatrizK':
         E,v = ModelData.E, ModelData.v # Estado plano de esfuerzos
-        E,v = E/(1.0-v*2),v/(1-v)# Estado plano de deformaciones
+        # E,v = E/(1.0-v*2),v/(1-v)# Estado plano de deformaciones
         if ProblemData.SpaceDim == 2:
             # Formando Matriz D
             D = zeros((3,3))
@@ -285,8 +285,8 @@ def FunciónForma(X,gp,tipo):
         #
         xi, eta = gp[1], gp[2]
         N[0],N[1],N[2] = xi,eta,1.0-xi-eta
-        dN[0,0], dN[0,1], dN[0,2] =  1.0,  0.0, -1.0 #dN/d(xi)
-        dN[1,0], dN[1,1], dN[1,2] =  0.0,  1.0, -1.0 #dN/d(eta)
+        dN[0,0], dN[0,1], dN[0,2] =  1.0,  0.0, -1.0 # dN,ξ 
+        dN[1,0], dN[1,1], dN[1,2] =  0.0,  1.0, -1.0 # dN,η
 
     elif tipo == 'Quad4':
         N, dN, J= zeros((1,4)), zeros((2,4)), zeros((2,2))	
@@ -295,7 +295,7 @@ def FunciónForma(X,gp,tipo):
         ξ = gp[1]
         η = gp[2]
         #
-        N   = 0.25*(1.0 + a[:]*ξ)*(1.0 + b[:]*η) # 0.25(1+ξiξ)(1+ηiη)
+        N   = 0.25*(1.0 + a[:]*ξ)*(1.0 + b[:]*η) # N = 0.25(1+ξiξ)(1+ηiη)
         dN[0] = 0.25*a[:]*(1 + b[:]*η) # dN,ξ = 0.25ξi(1+ηiη)
         dN[1] = 0.25*b[:]*(1 + a[:]*ξ) # dN,η = 0.25ηi(1+ξiξ)
         #

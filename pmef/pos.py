@@ -37,3 +37,19 @@ def graph(x,cnx,ax):
     L = min(yrng[1]-xrng[0],yrng[1]-yrng[0])
     im = image.imread('https://jpi-ingenieria.com/images/logoJPI.png')
     ax.imshow(im,aspect='auto',extent=(xm-0.3*L-1*L, xm+0.3*L-1*L, ym-0.3*L-1*L, ym+0.3*L-1*L), zorder=-1,alpha=0.5)
+
+def quads_to_tris(quads):
+    tris = zeros((2*len(quads),3),'int')
+    for i in range(len(quads)):
+        j = 2*i
+        n0 = quads[i,0]
+        n1 = quads[i,1]
+        n2 = quads[i,2]
+        n3 = quads[i,3]
+        tris[j,0] = n0
+        tris[j,1] = n1
+        tris[j,2] = n2
+        tris[j+1,0] = n2
+        tris[j+1,1] = n3
+        tris[j+1,2] = n0
+    return tris

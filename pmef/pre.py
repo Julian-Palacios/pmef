@@ -51,7 +51,10 @@ def BC_2Dx(X,dy,x,tipo,gdl,val):
             else: continue
         else: continue
     BC_data = BC_data[:k]
-    print('Se crearon %i condiciones de Borde.'%len(BC_data))
+    n = len(BC_data)
+    for i in range(n): # si es Codicion Neumann
+        if BC_data[i,1]==0: BC_data[i,3] = val/n
+    print('Se crearon %i condiciones de Borde.'%n)
     return BC_data
 
 def BC_2Dy(X,dx,y,tipo,gdl,val):
@@ -78,7 +81,10 @@ def BC_2Dy(X,dx,y,tipo,gdl,val):
             else: continue
         else: continue
     BC_data = BC_data[:k]
-    print('Se crearon %i condiciones de Borde.'%len(BC_data))
+    n = len(BC_data)
+    for i in range(n): # si es Codicion Neumann
+        if BC_data[i,1]==0: BC_data[i,3] = val/n
+    print('Se crearon %i condiciones de Borde.'%n)
     return BC_data
 
 
@@ -175,3 +181,26 @@ def founMesh(x1,y1,x2,y2,mz1):
     return coor
 
 
+# Funcion que lee archivos obj de render
+def load_obj(fileName):
+    vertices = []
+    tri = []
+    quad = []
+
+    f = open(fileName)
+    for line in f:
+        if line[:2] == "v ":
+            vertex = line[2:].split()
+            vertices.append(vertex)
+        elif line[:2] == "f ":
+            face = line[2:].split()
+            if len(face) == 3:
+                tri.append(face)
+            else:
+                quad.append(face)
+    vertices = array(vertices, dtype=float)
+    tri = array(tri, dtype=int)
+    quad = array(quad, dtype=int)
+    f.close()
+
+    return vertices, tri, quad

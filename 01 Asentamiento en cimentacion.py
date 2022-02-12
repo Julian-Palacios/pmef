@@ -35,8 +35,8 @@ nd = int(D/mz1)
 x = zeros((nd+1,2))
 for i in range(nd+1):
     x[i] = [mz1*i-D/2,0.]
-fig, ax = plt.subplots()
-ax.plot(x[:,0],x[:,1],'k-',lw=4,alpha=0.5)
+# fig, ax = plt.subplots()
+# ax.plot(x[:,0],x[:,1],'k-',lw=4,alpha=0.5)
 x1, y1 = D/2, 0.
 x2, y2 = D, D/2
 coor = founMesh(x1,y1,x2,y2,mz1)
@@ -85,6 +85,8 @@ print("Demoró %.4f segundos"%(time.time()-start),"\nCantidad de EF:",Mesh.NC)
 #################              POSTPROCESAMIENTO            ####################
 FS = 10 # Factor de Amplificación
 defo = Deformada(Mesh.Nodos,u,FS)
+
+fig, ax = plt.subplots()
 ax.plot(defo[:nd+1,0],defo[:nd+1,1],'k-',lw=4)
 color = "RdYlGn"
 up = u[1::2]*100. # u to plot
