@@ -11,7 +11,7 @@ setup(
     install_requires=['numpy','scipy','matplotlib'],
     version='0.3',
     license='MIT',
-    description='Codigo para aprender a programar el Metodo de ELementos Finitos',
+    description='Codigo para aprender a programar el Metodo de Elementos Finitos',
     keywords=['Elementos Finitos'],
     # We will also need a readme eventually (there will be a warning)
     # long_description=open('README.txt').read(),

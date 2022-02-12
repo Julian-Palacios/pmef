@@ -2,21 +2,23 @@ from numpy import zeros, array
 from numpy.linalg import det, inv
 from scipy.sparse import lil_matrix
 
+# Funciones principales
 def AssembleMatrix(Mesh, ElementData, ProblemData, ModelData, MatrixType):
-    '''Función que realiza el ensamble de la matriz K, de Ku = F
+    '''Función que realiza el ensamble de la matriz A, del sistema Au = f.
+
     Input:
             Mesh:       Clase que contiene los nodos y conexiones
-                        obtenidos del mallado.
+                        obtenidos del Mesh.
             __Data:     Información del EF, problema a resolver y del
                         modelo utilizado.
             MatrixType: Texto que indica que arreglo se quiere obtener
     Output:
-            A:          Arreglo obtenido del ensamble de las matrices de
-                        los elementos finitos.
+            A:          Arreglo obtenido del ensamble de los arreglos A_e
+                        de los elementos finitos.
     '''
     N = Mesh.NN*ElementData.dof
     n = ElementData.nodes*ElementData.dof
-    # Define matriz sparse para la matriz global 
+    # Define matriz sparse para la matriz A global 
     A = lil_matrix((N,N), dtype='float64')
     # Define Matriz para elementos
     A_e   = zeros(n, dtype='float64')
@@ -47,7 +49,7 @@ def AssembleMatrix(Mesh, ElementData, ProblemData, ModelData, MatrixType):
     return A
     
 def AssembleVector(Mesh, ElementData, ProblemData, ModelData, MatrixType):
-    '''Función que realiza el ensamble del vector F, de Ku=F
+    '''Función que realiza el ensamble del vector f, del sistema Au = f.
     Input:
             Mesh:       Clase que contiene los nodos y conexiones
                         obtenidos del mallado.
@@ -60,56 +62,56 @@ def AssembleVector(Mesh, ElementData, ProblemData, ModelData, MatrixType):
     '''
     N = Mesh.NN*ElementData.dof
     n = ElementData.nodes*ElementData.dof
-    # Definiendo vector f global 
+    # Define matriz sparse para el vecto f global 
     f = zeros(N,'float64')
-    # Definiendo Matriz para elementos
+    # DefinE Matriz para elementos
     f_e    = zeros(n,'float64')
     f_int  = zeros(n,'float64')
-    # Se obtiene los pesos y posiciones de la Cuadratura de Gauss
+    # Obtiene pesos y posiciones de la Cuadratura de Gauss
     gp = CuadraturaGauss(ElementData.noInt,ProblemData.SpaceDim)
     # Bucle para ensamblar la matriz de cada elemento
     for connect_element in Mesh.Conex:
-        # Asigando coordenadas de nodos y connectividad
+        # Obtiene coordenadas de nodos del elemento
         x_element = Mesh.Nodos[connect_element]
         # Bucle para realizar la integración según Cuadratura de Gauss
         for gauss_point in gp:
-            # Se calcula Las Funciones de Forma
-            [N, dN,ddN, j] = FunciónForma(x_element, gauss_point,ElementData.type)      
-            # Se calcula la Matriz de cada Elemento
+            # Evalua los puntos de Gauss en las Funciones de Forma
+            [N, dN,ddN, j] = FunciónForma(x_element, gauss_point,ElementData.type)
             dX = gauss_point[0]*j
-            # Se evalua el PDE (Elasticidad, Timoshenko, Bernoulli, etc)
+            # Obtiene la Matriz de cada Elemento según el Problema(Elasticidad, Timoshenko, Bernoulli, etc)
             f_int = eval(ProblemData.pde +'(f_int, x_element, N, dN, ddN, ProblemData, ElementData, ModelData, dX, "VectorF")')
             f_e = f_e + f_int
-        # Se mapea los grados de libertad
+        # Mapea los grados de libertad
         dof = DofMap(ElementData.dof, connect_element, ElementData.nodes)
-        # Ensamblando
-        # print(dof,f_e)
+        # Ensambla la matriz del elemento en la matriz global
         f[dof] = f[dof] + f_e
+        # Asigna 0 a la Matriz del Elemento
         f_e = 0.0
     return f
 
-def ApplyBC(A, f, BC_data, Mesh, ElementData,ProblemData, ModelData):
-    '''Esta función aplica las condiciones de borde especificadas
+def ApplyBC(A, f, BC_data, Mesh, ElementData,ProblemData, ModelData,showBC=False):
+    '''Esta función aplica las condiciones de borde especificadas.
+
     Input:
-            A:      Matriz del sistema global antes de aplicar las CB
-            f:      Vector de fuerzas del sistema global antes de aplicar las CB
-            Mesh:   Clase que contiene los nodos y conexiones
-                    obtenidos del mallado.
-            Data:   Información del EF, problema a resolver y del
+            A:      Matriz del sistema global antes de aplicar las CB.
+            f:      Vector de fuerzas del sistema global antes de aplicar las CB.
+            Mesh:   Clase que contiene los nodos y conexiones \
+                    obtenidos del Mesh.
+            Data:   Información del EF, problema a resolver y del \
                     modelo utilizado.
     Output:
-            A:      Matriz del sistema global después de aplicar las CB
+            A:      Matriz del sistema global después de aplicar las CB.
             f:      Vector de fuerzas del sistema global después de aplicar las CB.       
     '''
     for bc in BC_data:
         if int(bc[1]) == 0:  # Neumann
             dof = int(ElementData.dof*bc[0]+bc[2])-1
-            print("CB Neumann, DOF:",dof)
+            if showBC==True: print("CB Neumann, DOF:",dof)
             if A[dof,dof] == 1.0: continue # ALREADY is Dirichlet BC
             f[dof] = f[dof] + bc[3]
         elif int(bc[1]) == 1:# Dirichlet
             dof = int(ElementData.dof*bc[0]+bc[2])-1
-            print("CB Dirichlet, DOF:",dof)
+            if showBC==True: print("CB Dirichlet, DOF:",dof)
             A[dof,:]  = 0.0
             A[dof,dof] = 1.0
             f[dof] = bc[3]
@@ -117,26 +119,33 @@ def ApplyBC(A, f, BC_data, Mesh, ElementData,ProblemData, ModelData):
             print('Condición de Borde Desconocida')
     return A,f
 
+
+# Funciones MEF
 def Elasticidad(A, X, N, dN,dNN, ProblemData, ElementData, ModelData, dX, tipo):
-    '''Función que retorna la matriz de un EF evaluado en un Punto de Gauss
+    '''Función que retorna la matriz de un EF evaluado en un Punto de Gauss.
+
     Input:
-            - X:    Arreglo que contiene las coordenadas del EF.
-            - N:    Arreglo que contiene las funciones de forma.
-            - dN:   Arreglo que contiene las derivadas parciales de las
-                    funciones de forma.
-            - ddN:  Arreglo que contiene las segundas derivadas parciales
-                    de las funciones de forma.
-            - dX:   
-            - tipo: Texto que indica que arreglo se quiere obtener. 
-                    Ejem: MatrizK, VectorF, MasaConsistente, MasaConcentrada
+        - X:    Arreglo que contiene las coordenadas del EF.
+        - N:    Arreglo que contiene las funciones de forma.
+        - dN:   Arreglo que contiene las derivadas parciales de las \
+                funciones de forma.
+        - ddN:  Arreglo que contiene las segundas derivadas parciales \
+                de las funciones de forma. 
+        - dX:   
+        - tipo: Texto que indica que arreglo se quiere obtener. \
+                Ejem: MatrizK, VectorF, MasaConsistente, MasaConcentrada
+                
     Output:
-            - A:    Arreglo del elemento finito que se quiere obtener.
+        - A:    Arreglo del elemento finito que se quiere obtener.
     '''
     n, m, t = ElementData.nodes, ElementData.dof, ModelData.thickness
     #
     if tipo == 'MatrizK':
         E,v = ModelData.E, ModelData.v # Estado plano de esfuerzos
-        # E,v = E/(1.0-v*2),v/(1-v)# Estado plano de deformaciones
+        if ModelData.state == 'PlainStress': pass
+        elif ModelData.state == 'PlainStrain': E,v = E/(1.0-v*2),v/(1-v)
+        else: print('El estado plano solo puede ser "PlainStress" o "PlainStrain"')
+        
         if ProblemData.SpaceDim == 2:
             # Formando Matriz D
             D = zeros((3,3))
@@ -189,17 +198,16 @@ def Elasticidad(A, X, N, dN,dNN, ProblemData, ElementData, ModelData, dX, tipo):
         print("Debes programar para el tipo %s aún"%tipo)
     return A
 
-
 def CuadraturaGauss(puntos, dim):
     '''
-    Esta función define los puntos de integración según la
+    Esta función define los puntos de integración según la \
     cuadratura de Gauss
-    ---------------
+    
     Input:
             puntos:     El número de puntos de integración de Gauss
             dim:        Dimensión del elemento finito
     Output:
-            gp:         Arreglo cuya primera fila son los pesos y las
+            gp:         Arreglo cuya primera fila son los pesos y las \
                         demás las posiciones respectivas                   
     '''
     if dim == 1:
@@ -240,14 +248,15 @@ def CuadraturaGauss(puntos, dim):
 
 def FunciónForma(X,gp,tipo):
     '''
-    Esta función define funciones de forma y sus derivadas
-    en coordenadas naturales para un elemento finito de
+    Esta función define funciones de forma y sus derivadas \
+    en coordenadas naturales para un elemento finito de \
     coordenadas X, N(X)=N(xi),dN(X)=dN(xi)*J-1
-    -----------------
+    
     Input:
         X:      Matriz de coordenadas del elemento
         gp:     Arreglo que contiene los parametros de la cuadratura de Gauss
         tipo:   Tipo de elemento finito
+
     Output:
         N:      Matriz de funciones de Forma
         dN:     Matriz de la derivada de las funciones de Forma
@@ -322,13 +331,14 @@ def FunciónForma(X,gp,tipo):
     return N,dN,ddN,j
 
 def DofMap(DofNode, connect, NodesElement):
-    '''Función que mapea los grados de libertad correspondientes a un EF
+    '''Función que mapea los grados de libertad correspondientes a un EF.
+
     Input:
             DofNode:        Cantidad de grados de libertad por nodo
             connect:        Nodos del Elemento Finito
             NodesElement:   Cantidad de nodos del Elemento Finito
     Output:
-            dof:            Lista que contiene los grados de libertad
+            dof:            Lista que contiene los grados de libertad \
                             del EF en el sistema global.
     '''
     dof=[]

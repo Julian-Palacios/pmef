@@ -1,14 +1,16 @@
 from pmef.pre import delaunay, founMesh, BC_2Dx, BC_2Dy
 from pmef.pro import AssembleMatrix, AssembleVector, ApplyBC
-from pmef.pos import Deformada, graph
+from pmef.pos import Deformada, plot_deform
 
 import time
 from numpy import array, zeros, append
 from scipy.sparse.linalg import spsolve
 import matplotlib.pyplot as plt
-import matplotlib.colors as colors
-import matplotlib.tri as tri
-import matplotlib.cm
+
+# Unidades
+cm = 0.01
+kgf = 9.81
+tonf = 1000*kgf
 
 gravity = array([0.0,-1.0,0.0])
 class ProblemData:
@@ -23,10 +25,10 @@ class ModelData:
 	E  = 1e7
 	v = 0.33
 	thickness = 1.0
+	state = 'PlainStress'
 	density = 1631
 	selfweight= 0.0
 	gravity = gravity
-
 
 
 D = 1.
@@ -35,23 +37,22 @@ nd = int(D/mz1)
 x = zeros((nd+1,2))
 for i in range(nd+1):
     x[i] = [mz1*i-D/2,0.]
-# fig, ax = plt.subplots()
-# ax.plot(x[:,0],x[:,1],'k-',lw=4,alpha=0.5)
-x1, y1 = D/2, 0.
-x2, y2 = D, D/2
-coor = founMesh(x1,y1,x2,y2,mz1)
+Lx1, Ly1 = D/2, 0.
+Lx2, Ly2 = D, D/2
+coor = founMesh(Lx1,Ly1,Lx2,Ly2,mz1)
 x = append(x,coor,axis=0)
 
 mz2 = 0.2
-x1, y1 = x2, y2
-x2, y2 = 2*D, 2*D
-coor = founMesh(x1,y1,x2,y2,mz2)
+Lx1, Ly1 = Lx2, Ly2
+Lx2, Ly2 = 2*D, 2*D
+coor = founMesh(Lx1,Ly1,Lx2,Ly2,mz2)
 x = append(x,coor,axis=0)
 
 mz3 = 0.4
-x1, y1 = x2, y2
-x2, y2 = 4*D, 4*D
-coor = founMesh(x1,y1,x2,y2,mz3)
+Lx1, Ly1 = Lx2, Ly2
+Lx2, Ly2 = 4*D, 4*D
+coor = founMesh(Lx1,Ly1,Lx2,Ly2,mz3)
+
 x = append(x,coor,axis=0)
 cnx=delaunay(x)
 
@@ -74,29 +75,21 @@ BC_data = append(BC_data,BC,axis=0)
 #################               PROCESAMIENTO              ####################
 N = Mesh.NN*ElementData.dof
 u = zeros(N,'float64')
+print("Ensamble en el Sistema global...")
 K = AssembleMatrix(Mesh, ElementData, ProblemData, ModelData, 'MatrizK')
 f = AssembleVector(Mesh, ElementData, ProblemData, ModelData, "VectorF")
 [K, f] = ApplyBC(K, f, BC_data, Mesh, ElementData, ProblemData,  ModelData)
-# Resolviendo el sistema de ecuaciones
+# Resuelve el sistema de ecuaciones
 start = time.time()
 u = spsolve(K.tocsr(),f)
-print("Demoró %.4f segundos"%(time.time()-start),"\nCantidad de EF:",Mesh.NC)
+print("Solver demoró %.4f segundos"%(time.time()-start))
 
 #################              POSTPROCESAMIENTO            ####################
-FS = 10 # Factor de Amplificación
+print("Generando gráfica...")
+FS = 10 # Factor de Amplificación para deformada
 defo = Deformada(Mesh.Nodos,u,FS)
 
-fig, ax = plt.subplots()
+fig, ax = plt.subplots(figsize=(15,6),dpi=100)
 ax.plot(defo[:nd+1,0],defo[:nd+1,1],'k-',lw=4)
-color = "RdYlGn"
-up = u[1::2]*100. # u to plot
-triangulation = tri.Triangulation(defo[:,0], defo[:,1], triangles=cnx)
-ax.tricontourf(triangulation, up, cmap=color, alpha=1.0)
-FS = 1.
-norm = colors.Normalize(vmin=min(up / FS), vmax=max(up / FS))
-plt.colorbar(matplotlib.cm.ScalarMappable(norm=norm, cmap=color),
-                orientation='vertical',label='Desplazamiento Y (cm)')
-graph(defo,cnx,ax)
-plt.axis('off')
-plt.axis('equal')
-plt.show()
+u_plot = u[1::2]/cm # u para ploteo a color
+plot_deform(u_plot,defo,cnx,ax,color='RdYlGn',bar_label='Desplazamiento X (cm)')
