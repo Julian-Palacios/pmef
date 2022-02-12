@@ -9,7 +9,7 @@ setup(
     packages=['pmef'],
     # Needed for dependencies
     install_requires=['numpy','scipy','matplotlib'],
-    version='0.2',
+    version='0.3',
     license='MIT',
     description='Codigo para aprender a programar el Metodo de ELementos Finitos',
     keywords=['Elementos Finitos'],
