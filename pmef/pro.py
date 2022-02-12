@@ -142,9 +142,9 @@ def Elasticidad(A, X, N, dN,dNN, ProblemData, ElementData, ModelData, dX, tipo):
     #
     if tipo == 'MatrizK':
         E,v = ModelData.E, ModelData.v # Estado plano de esfuerzos
-        if ModelData.state == 'PlainStress': pass
-        elif ModelData.state == 'PlainStrain': E,v = E/(1.0-v*2),v/(1-v)
-        else: print('El estado plano solo puede ser "PlainStress" o "PlainStrain"')
+        if ModelData.state == 'PlaneStress': pass
+        elif ModelData.state == 'PlaneStrain': E,v = E/(1.0-v*2),v/(1-v)
+        else: print('El estado plano solo puede ser "PlaneStress" o "PlaneStrain"')
         
         if ProblemData.SpaceDim == 2:
             # Formando Matriz D

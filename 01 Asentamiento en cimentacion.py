@@ -25,7 +25,7 @@ class ModelData:
 	E  = 1e7
 	v = 0.33
 	thickness = 1.0
-	state = 'PlainStress'
+	state = 'PlaneStress'
 	density = 1631
 	selfweight= 0.0
 	gravity = gravity
