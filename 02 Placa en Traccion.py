@@ -2,10 +2,10 @@ from pmef.pre import load_obj, BC_2Dy
 from pmef.pro import AssembleMatrix, AssembleVector, ApplyBC
 from pmef.pos import Deformada, plot_deform
 
+import time
 from numpy import array, zeros, append
 from scipy.sparse.linalg import spsolve
 import matplotlib.pyplot as plt
-import time
 
 # Unidades
 cm = 0.01
@@ -51,6 +51,7 @@ class ModelData:
 	E  = 2.1e10 
 	v = 0.2
 	thickness = 0.04
+	state = 'PlainStress'
 	density = 7860
 	selfweight= 0.0
 	gravity = gravity

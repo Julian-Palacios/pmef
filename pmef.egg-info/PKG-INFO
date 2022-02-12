@@ -1,11 +1,25 @@
 Metadata-Version: 1.0
 Name: pmef
-Version: 0.3
-Summary: Codigo para aprender a programar el Metodo de ELementos Finitos
+Version: 0.4
+Summary: Librería para aprender a Programar el Metodo de Elementos Finitos
 Home-page: https://github.com/Julian-Palacios/pmef
-Author: Julian Palacios, Jorge Lulimachi, Humberto Rojas, Luis Baldeon
+Author: Julian Palacios, Jorge Lulimachi, Humberto Rojas y Luis Baldeon
 Author-email: jpalaciose@uni.pe
 License: MIT
-Description: UNKNOWN
-Keywords: Elementos Finitos
+Description: ## PMEF
+        ## Programando el Método de Elementos Finitos
+        
+        Códigos creados en Python en el año 2020 por Julian Palacios (jpalaciose@uni.pe)
+        
+        Con la colaboración de:
+        
+        Jorge Lulimachi (jlulimachis@uni.pe), 
+        Humberto Rojas (humberto.rojas.h@uni.pe), 
+        Luis Baldeon (luis.baldeon.c@uni.pe)
+        
+        Cabe resaltar que este código se basó en las rutinas de matlab FEMCode realizado por Garth N .Wells (2005) para la clase CT5123 en TU Delft, Países Bajos.
+        
+        PMEF es una librería desarrollada para enseñar a Programar el Método de Elementos Finitos mediante el curso online de JPI Ingeniería (www.jpi-ingenieria.com).
+        
+Keywords: Elementos Finitos,Funciones de Forma,Mapeo Isoparamétrico
 Platform: UNKNOWN
