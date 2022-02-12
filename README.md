@@ -1,7 +1,7 @@
 ## PMEF
 ## Programando el Método de Elementos Finitos
 
-Librería creada en el año 2020 por Julian Palacios (jpalaciose@uni.pe)
+Códigos creados en Python en el año 2020 por Julian Palacios (jpalaciose@uni.pe)
 
 Con la colaboración de:
 
