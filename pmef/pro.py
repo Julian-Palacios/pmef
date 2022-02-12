@@ -2,74 +2,49 @@ from numpy import zeros, array
 from numpy.linalg import det, inv
 from scipy.sparse.linalg import lil_matrix
 
-class pre:
-    def LinearMesh(L,Ne,x0=0):
-        '''
-        Función que retorna nodos y conexiones para elementos finitos en 1D.
-        Donde:
-                L:      Longitud total de la barra.
-                Ne:     Número de elementos a crear.
-                x0:     Posición del primer nodo.
-        '''
-        L_element=L/Ne
-        # Crea arreglo de nodos
-        nodos = zeros(Ne+1)
-        for i in range(Ne+1): 
-            nodos[i]=x0 + i*L_element
-        # Crea arreglo de conexiones
-        conex = zeros((Ne,2),'int')
-        conex[:,0],conex[:,1] = range(Ne), range(1,Ne+1)
-        class Mesh:
-            NN = len(nodos)
-            Nodos = nodos
-            NC = len(conex)
-            Conex = conex
-        return Mesh
-
-class pro:
-    def AssembleMatrix(Mesh, ElementData, ProblemData, ModelData, MatrixType):
-        '''Función que realiza el ensamble de la matriz K, de Ku = F
-        Input:
-                Mesh:       Clase que contiene los nodos y conexiones
-                            obtenidos del mallado.
-                __Data:     Información del EF, problema a resolver y del
-                            modelo utilizado.
-                MatrixType: Texto que indica que arreglo se quiere obtener
-        Output:
-                A:          Arreglo obtenido del ensamble de las matrices de
-                            los elementos finitos.
-        '''
-        N = Mesh.NN*ElementData.dof
-        n = ElementData.nodes*ElementData.dof
-        # Define matriz sparse para la matriz global 
-        A = lil_matrix((N,N), dtype='float64')
-        # Define Matriz para elementos
-        A_e   = zeros(n, dtype='float64')
-        A_int = zeros(n, dtype='float64')
-        # Obtiene pesos y posiciones de la Cuadratura de Gauss
-        gp = CuadraturaGauss(ElementData.noInt, ProblemData.SpaceDim)
-        # Bucle para ensamblar la matriz de cada elemento
-        for connect_element in Mesh.Conex:
-            # Obtiene coordenadas de nodos del elemento
-            x_element = Mesh.Nodos[connect_element]
-            # Bucle para realizar la integración según Cuadratura de Gauss
-            for gauss_point in gp:
-                # Evalua los puntos de Gauss en las Funciones de Forma
-                [N, dN,ddN, j] = FunciónForma(x_element, gauss_point, ElementData.type)
-                dX = gauss_point[0]*j
-                # Obtiene la Matriz de cada Elemento según el Problema(Elasticidad, Timoshenko, Bernoulli, etc)
-                A_int = eval(ProblemData.pde +'(A_int, x_element, N, dN,ddN, ProblemData,ElementData, ModelData, dX, MatrixType)')
-                A_e = A_e + A_int
-            # Mapea los grados de libertad
-            dof = DofMap(ElementData.dof, connect_element, ElementData.nodes)
-            # Ensambla la matriz del elemento en la matriz global
-            cont=0
-            for k in dof:
-                A[k,dof]=A[k,dof]+A_e[cont]
-                cont=cont+1
-            # Asigna 0 a la Matriz del Elemento
-            A_e[:] = 0.0
-        return A
+def AssembleMatrix(Mesh, ElementData, ProblemData, ModelData, MatrixType):
+    '''Función que realiza el ensamble de la matriz K, de Ku = F
+    Input:
+            Mesh:       Clase que contiene los nodos y conexiones
+                        obtenidos del mallado.
+            __Data:     Información del EF, problema a resolver y del
+                        modelo utilizado.
+            MatrixType: Texto que indica que arreglo se quiere obtener
+    Output:
+            A:          Arreglo obtenido del ensamble de las matrices de
+                        los elementos finitos.
+    '''
+    N = Mesh.NN*ElementData.dof
+    n = ElementData.nodes*ElementData.dof
+    # Define matriz sparse para la matriz global 
+    A = lil_matrix((N,N), dtype='float64')
+    # Define Matriz para elementos
+    A_e   = zeros(n, dtype='float64')
+    A_int = zeros(n, dtype='float64')
+    # Obtiene pesos y posiciones de la Cuadratura de Gauss
+    gp = CuadraturaGauss(ElementData.noInt, ProblemData.SpaceDim)
+    # Bucle para ensamblar la matriz de cada elemento
+    for connect_element in Mesh.Conex:
+        # Obtiene coordenadas de nodos del elemento
+        x_element = Mesh.Nodos[connect_element]
+        # Bucle para realizar la integración según Cuadratura de Gauss
+        for gauss_point in gp:
+            # Evalua los puntos de Gauss en las Funciones de Forma
+            [N, dN,ddN, j] = FunciónForma(x_element, gauss_point, ElementData.type)
+            dX = gauss_point[0]*j
+            # Obtiene la Matriz de cada Elemento según el Problema(Elasticidad, Timoshenko, Bernoulli, etc)
+            A_int = eval(ProblemData.pde +'(A_int, x_element, N, dN,ddN, ProblemData,ElementData, ModelData, dX, MatrixType)')
+            A_e = A_e + A_int
+        # Mapea los grados de libertad
+        dof = DofMap(ElementData.dof, connect_element, ElementData.nodes)
+        # Ensambla la matriz del elemento en la matriz global
+        cont=0
+        for k in dof:
+            A[k,dof]=A[k,dof]+A_e[cont]
+            cont=cont+1
+        # Asigna 0 a la Matriz del Elemento
+        A_e[:] = 0.0
+    return A
     
 
 def CuadraturaGauss(puntos, dim):
