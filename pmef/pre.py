@@ -49,7 +49,7 @@ def founMesh(Lx1,Ly1,Lx2,Ly2,mz1):
 
 def load_obj(fileName):
     '''
-    Función que lee archivos tipo obj de blender para generar crear arreglos\
+    Función que lee archivos tipo obj para generar crear arreglos\
     de coordenadas, elementos triangulares y rectangules (tri, quad).
     '''
     vertices, tri, quad = [], [], []

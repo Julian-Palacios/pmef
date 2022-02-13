@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 # Unidades
 cm = 0.01
-kgf = 9.81
+kgf = 9.80665
 tonf = 1000*kgf
 
 # Lectura de Mesh
