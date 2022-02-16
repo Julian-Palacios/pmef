@@ -1,5 +1,5 @@
-from numpy import zeros, array, dot, delete, append, unique
-from numpy import sin, arccos, arctan2
+from numpy import zeros, array, linspace, delete, append, unique
+from numpy import dot, sin, arccos, arctan2
 from numpy.linalg import norm
 
 # Funciones para generar Mesh
@@ -12,14 +12,11 @@ def LinearMesh(L,Ne,x0=0):
             Ne:     Número de elementos a crear.
             x0:     Posición del primer nodo.
     '''
-    L_element=L/Ne
     # Crea arreglo de nodos
-    nodos = zeros(Ne+1)
-    for i in range(Ne+1): 
-        nodos[i]=x0 + i*L_element
+    x = linspace(x0,x0+18.0,Ne+1)
     # Crea arreglo de conexiones
-    conex = zeros((Ne,2),'int')
-    conex[:,0],conex[:,1] = range(Ne), range(1,Ne+1)
+    cnx = zeros((Ne,2),'int')
+    cnx[:,0],cnx[:,1] = range(Ne), range(1,Ne+1)
     class Mesh:
         NN = len(nodos)
         Nodos = nodos
