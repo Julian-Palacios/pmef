@@ -6,7 +6,7 @@ import matplotlib.tri as tri
 import matplotlib.cm
 
 
-def Deformada(X,u,FS=10.0):
+def deform(X,u,FS=10.0):
     ''' Función que agrega una deformación a la pocisión de Nodos.
 
     Input:
