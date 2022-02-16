@@ -159,7 +159,7 @@ class Mesh:
 gravity = np.array([0.0,-1.0,0.0])
 class ProblemData:
 	SpaceDim = 2
-	pde="Elasticidad"
+	pde="Elasticity"
 class ElementData:
 	dof = 2
 	nodes = 3
