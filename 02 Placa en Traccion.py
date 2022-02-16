@@ -52,7 +52,7 @@ class ModelData:
 	v = 0.2
 	thickness = 0.04
 	state = 'PlaneStress'
-	density = 7860
+	density = 7860.0
 	selfweight= 0.0
 	gravity = gravity
 
@@ -73,12 +73,15 @@ f = AssembleVector(Mesh, ElementData, ProblemData, ModelData, "VectorF")
 start = time.time()
 u = spsolve(K.tocsr(),f)
 print("Solver demoró %.4f segundos"%(time.time()-start))
+for i in range(len(Mesh.Nodos)):
+  if Mesh.Nodos[i,0]==1.0 and Mesh.Nodos[i,1]==0.0:
+    print('Desplazamiento en X (cm): %.4f'%(u[i*2]*100.0))
 
 #################              POSTPROCESAMIENTO            ####################
-print("Generando gráfica...")
-FS = 50# Factor para visualizacion
-defo = Deformada(Mesh.Nodos,u,FS)
+# print("Generando gráfica...")
+# FS = 50# Factor para visualizacion
+# defo = Deformada(Mesh.Nodos,u,FS)
 
-fig, ax = plt.subplots(figsize=(15,6),dpi=200)
-u_plot = u[0::2]/cm # u para el ploteo
-plot_deform(u_plot,defo,cnx,ax,bar_label='Desplazamiento X (cm)')
+# fig, ax = plt.subplots(figsize=(15,6),dpi=200)
+# u_plot = u[0::2]/cm # u para el ploteo
+# plot_deform(u_plot,defo,cnx,ax,bar_label='Desplazamiento X (cm)')

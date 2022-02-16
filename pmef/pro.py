@@ -317,10 +317,10 @@ def FunciónForma(X,gp,tipo):
     except NameError:
         J=dN@X
         if len(J) >1: 
-            j = det(J)
+            j = abs(det(J))
             dN = inv(J)@dN
         else:
-            j=J[0]
+            j=abs(J[0])
             dN = dN/j
     if j<0: 
         print("Cuidado: El jacobiano es negativo!")
