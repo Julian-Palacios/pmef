@@ -65,7 +65,7 @@ def quads_to_tris(quads):
         tris[j+1,2] = n0
     return tris
 
-def plot_deform(up,defo,cnx,ax,color='RdYlGn_r',bar_label='Resultados',labels=False):
+def plot_deform(up,defo,cnx,ax,color='RdYlGn_r',bar_label='Resultados',logo=True,labels=False):
     '''
     Función que realiza el ploteo de nodos, elementos y resultados.
     '''
@@ -79,7 +79,7 @@ def plot_deform(up,defo,cnx,ax,color='RdYlGn_r',bar_label='Resultados',labels=Fa
     norm = colors.Normalize(vmin=min(up), vmax=max(up))
     plt.colorbar(matplotlib.cm.ScalarMappable(norm=norm, cmap=color),
                     orientation='vertical',label=bar_label)
-    graph(defo,cnx,ax,labels=labels)
+    graph(defo,cnx,ax,logo=logo,labels=labels)
     plt.axis('off'); plt.axis('equal')
     plt.tight_layout(); plt.show()
 
