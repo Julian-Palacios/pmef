@@ -1,6 +1,6 @@
 from pmef.pre import load_obj, BC_2Dy
 from pmef.pro import AssembleMatrix, AssembleVector, ApplyBC
-from pmef.pos import Deformada, plot_deform
+from pmef.pos import deform, plot_deform
 
 import time
 from numpy import array, zeros, append
@@ -77,7 +77,7 @@ print("Solver demoró %.4f segundos"%(time.time()-start))
 #################              POSTPROCESAMIENTO            ####################
 print("Generando gráfica...")
 FS = 50# Factor para visualizacion
-defo = Deformada(Mesh.Nodos,u,FS)
+defo = deform(Mesh.Nodos,u,FS)
 
 fig, ax = plt.subplots(figsize=(15,6),dpi=200)
 u_plot = u[0::2]/cm # u para el ploteo
