@@ -142,7 +142,25 @@ def Elasticity(A, X, N, dN,dNN, ProblemData, ElementData, ModelData, dX, tipo):
     #
     if ProblemData.SpaceDim == 1:
         area = ModelData.area
-        print('Hacer algo.',area)
+        if tipo == 'MatrizK':
+            E = ModelData.E
+            # Formando Matriz B
+            B = zeros((1,m*n))
+            for i in range(m):
+                B[i, i::m] = dN[i]
+            A = B.T@B*dX*E*area
+
+        elif tipo == 'VectorF':
+            # Formando Matriz F
+            Nmat=zeros((m,m*n))
+            for i in range(m):
+                Nmat[i, i::m] = N
+                f = ModelData.selfweight*ModelData.gravity
+                A = Nmat*f*area*dX
+            print('Hola!',A)
+
+        else:
+            print("Debes programar para el tipo %s aún"%tipo)
 
     elif ProblemData.SpaceDim == 2:
         t = ModelData.thickness

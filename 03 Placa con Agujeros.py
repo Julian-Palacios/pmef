@@ -201,4 +201,4 @@ defo = deform(Mesh.Nodos,u,FS)
 
 fig, ax = plt.subplots(figsize=(15,6),dpi=200)
 u_plot = u[1::2]/cm # u para el ploteo
-plot_deform(u_plot,defo,cnx,ax,bar_label='Desplazamiento X (cm)')
+plot_deform(u_plot,defo,Mesh.Conex,ax,color='RdYlGn',bar_label='Desplazamiento X (cm)')

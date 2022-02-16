@@ -16,10 +16,19 @@ def deform(X,u,FS=10.0):
     Output:
         X_def:  Arreglo que contiene la deformada del sistema.   
     '''
-    NN = len(X)
-    X_def=zeros(X.shape)
-    for i in range(NN):
-        X_def[i]=X[i]+FS*array([u[2*i],u[2*i+1]])
+    if len(X.shape)==1:
+        dim = 1
+        NN = len(X)
+    else:
+        (NN,dim) = X.shape
+    X_def=zeros((NN,dim))
+    if dim == 1: # 1D
+        X_def = X + u*FS
+    elif dim==2: # 2D
+        for i in range(NN):
+            X_def[i]=X[i]+FS*array([u[2*i],u[2*i+1]])
+    else:
+        print('Debe programar para %iD!'%m)
     return X_def
 
 def graph(x,cnx,ax,logo=True,labels=False):
