@@ -18,10 +18,10 @@ def LinearMesh(L,Ne,x0=0):
     cnx = zeros((Ne,2),'int')
     cnx[:,0],cnx[:,1] = range(Ne), range(1,Ne+1)
     class Mesh:
-        NN = len(nodos)
-        Nodos = nodos
-        NC = len(conex)
-        Conex = conex
+        NN = len(x)
+        Nodos = x
+        NC = len(cnx)
+        Conex = cnx
     return Mesh
 
 def founMesh(Lx1,Ly1,Lx2,Ly2,mz1):

@@ -138,21 +138,15 @@ def Elasticity(A, X, N, dN,dNN, ProblemData, ElementData, ModelData, dX, tipo):
     Output:
         - A:    Arreglo del elemento finito que se quiere obtener.
     '''
-    n, m = ElementData.nodes, ElementData.dof
+    n, m, t = ElementData.nodes, ElementData.dof, ModelData.thickness
     #
-    if ProblemData.SpaceDim == 1:
-        area = ModelData.area
-        print('Hacer algo.',area)
-
-    elif ProblemData.SpaceDim == 2:
-        t = ModelData.thickness
-
-        if tipo == 'MatrizK':
-            E,v = ModelData.E, ModelData.v # Estado plano de esfuerzos
-            if ModelData.state == 'PlaneStress': pass
-            elif ModelData.state == 'PlaneStrain': E,v = E/(1.0-v*2),v/(1-v)
-            else: print('El estado plano solo puede ser "PlaneStress" o "PlaneStrain"')
-            
+    if tipo == 'MatrizK':
+        E,v = ModelData.E, ModelData.v # Estado plano de esfuerzos
+        if ModelData.state == 'PlaneStress': pass
+        elif ModelData.state == 'PlaneStrain': E,v = E/(1.0-v*2),v/(1-v)
+        else: print('El estado plano solo puede ser "PlaneStress" o "PlaneStrain"')
+        
+        if ProblemData.SpaceDim == 2:
             # Formando Matriz D
             D = zeros((3,3))
             D[0,0], D[1,1], D[0,1], D[1,0]= 1.0, 1.0, v, v
@@ -165,43 +159,43 @@ def Elasticity(A, X, N, dN,dNN, ProblemData, ElementData, ModelData, dX, tipo):
                 B[i, i::m] = dN[i]
             B[2, 0::m] = dN[1]
             B[2, 1::m] = dN[0]
-            #
-            A = B.T@D@B*dX*t
-        #
-        elif tipo == 'MasaConsistente':
-            Nmat = zeros((m, m*n))
-            rho = ModelData.density
-            for i in range(m):
-                Nmat[i, i::m] = N[:]
-            #
-            A = rho*Nmat.T@Nmat*dX*t
-        #
-        elif tipo == 'MasaConcentrada':
-            Nmat = zeros((m, m*n))
-            rho = ModelData.density
-            for i in range(m):
-                Nmat[i, i::m] = N[:]
-            #
-            B = rho*Nmat.T@Nmat*dX*t
-            one = zeros(m*n) + 1.0
-            B = B@one
-            A = zeros((m*n,m*n))
-            # Concentrando Masas
-            for i in range(m*n):
-                A[i,i] = B[i]
-        #
-        elif tipo == 'VectorF':
-            # Formando Matriz F
-            Nmat=zeros((m,m*n))
-            for i in range(m):
-                Nmat[i, i::m] = N[:].T
-                f = ModelData.selfweight*ModelData.gravity[0:m]
-                A = Nmat.T@f*dX*t
-        #
         else:
-            print("Debes programar para el tipo %s aún"%tipo)
+            print("Debes programar para %sD aún"%ProblemData.SpaceDim)
+        #
+        A = B.T@D@B*dX*t
+    #
+    elif tipo == 'MasaConsistente':
+        Nmat = zeros((m, m*n))
+        rho = ModelData.density
+        for i in range(m):
+            Nmat[i, i::m] = N[:]
+        #
+        A = rho*Nmat.T@Nmat*dX*t
+    #
+    elif tipo == 'MasaConcentrada':
+        Nmat = zeros((m, m*n))
+        rho = ModelData.density
+        for i in range(m):
+            Nmat[i, i::m] = N[:]
+        #
+        B = rho*Nmat.T@Nmat*dX*t
+        one = zeros(m*n) + 1.0
+        B = B@one
+        A = zeros((m*n,m*n))
+        # Concentrando Masas
+        for i in range(m*n):
+            A[i,i] = B[i]
+    #
+    elif tipo == 'VectorF':
+        # Formando Matriz F
+        Nmat=zeros((m,m*n))
+        for i in range(m):
+            Nmat[i, i::m] = N[:].T
+            f = ModelData.selfweight*ModelData.gravity[0:m]
+            A = Nmat.T@f*dX*t
+    #
     else:
-        print("Debes programar para %sD aún"%ProblemData.SpaceDim)
+        print("Debes programar para el tipo %s aún"%tipo)
     return A
 
 def GaussianQuadrature(puntos, dim):
