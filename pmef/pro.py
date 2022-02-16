@@ -24,7 +24,7 @@ def AssembleMatrix(Mesh, ElementData, ProblemData, ModelData, MatrixType):
     A_e   = zeros(n, dtype='float64')
     A_int = zeros(n, dtype='float64')
     # Obtiene pesos y posiciones de la Cuadratura de Gauss
-    gp = CuadraturaGauss(ElementData.noInt, ProblemData.SpaceDim)
+    gp = GaussianQuadrature(ElementData.noInt, ProblemData.SpaceDim)
     # Bucle para ensamblar la matriz de cada elemento
     for connect_element in Mesh.Conex:
         # Obtiene coordenadas de nodos del elemento
@@ -32,7 +32,7 @@ def AssembleMatrix(Mesh, ElementData, ProblemData, ModelData, MatrixType):
         # Bucle para realizar la integración según Cuadratura de Gauss
         for gauss_point in gp:
             # Evalua los puntos de Gauss en las Funciones de Forma
-            [N, dN,ddN, j] = FunciónForma(x_element, gauss_point, ElementData.type)
+            [N, dN,ddN, j] = ShapeFunction(x_element, gauss_point, ElementData.type)
             dX = gauss_point[0]*j
             # Obtiene la Matriz de cada Elemento según el Problema(Elasticidad, Timoshenko, Bernoulli, etc)
             A_int = eval(ProblemData.pde +'(A_int, x_element, N, dN,ddN, ProblemData,ElementData, ModelData, dX, MatrixType)')
@@ -68,7 +68,7 @@ def AssembleVector(Mesh, ElementData, ProblemData, ModelData, MatrixType):
     f_e    = zeros(n,'float64')
     f_int  = zeros(n,'float64')
     # Obtiene pesos y posiciones de la Cuadratura de Gauss
-    gp = CuadraturaGauss(ElementData.noInt,ProblemData.SpaceDim)
+    gp = GaussianQuadrature(ElementData.noInt,ProblemData.SpaceDim)
     # Bucle para ensamblar la matriz de cada elemento
     for connect_element in Mesh.Conex:
         # Obtiene coordenadas de nodos del elemento
@@ -76,7 +76,7 @@ def AssembleVector(Mesh, ElementData, ProblemData, ModelData, MatrixType):
         # Bucle para realizar la integración según Cuadratura de Gauss
         for gauss_point in gp:
             # Evalua los puntos de Gauss en las Funciones de Forma
-            [N, dN,ddN, j] = FunciónForma(x_element, gauss_point,ElementData.type)
+            [N, dN,ddN, j] = ShapeFunction(x_element, gauss_point,ElementData.type)
             dX = gauss_point[0]*j
             # Obtiene la Matriz de cada Elemento según el Problema(Elasticidad, Timoshenko, Bernoulli, etc)
             f_int = eval(ProblemData.pde +'(f_int, x_element, N, dN, ddN, ProblemData, ElementData, ModelData, dX, "VectorF")')
@@ -121,7 +121,7 @@ def ApplyBC(A, f, BC_data, Mesh, ElementData,ProblemData, ModelData,showBC=False
 
 
 # Funciones MEF
-def Elasticidad(A, X, N, dN,dNN, ProblemData, ElementData, ModelData, dX, tipo):
+def Elasticity(A, X, N, dN,dNN, ProblemData, ElementData, ModelData, dX, tipo):
     '''Función que retorna la matriz de un EF evaluado en un Punto de Gauss.
 
     Input:
@@ -198,7 +198,7 @@ def Elasticidad(A, X, N, dN,dNN, ProblemData, ElementData, ModelData, dX, tipo):
         print("Debes programar para el tipo %s aún"%tipo)
     return A
 
-def CuadraturaGauss(puntos, dim):
+def GaussianQuadrature(puntos, dim):
     '''
     Esta función define los puntos de integración según la \
     cuadratura de Gauss
@@ -246,7 +246,7 @@ def CuadraturaGauss(puntos, dim):
     
     return gp.T
 
-def FunciónForma(X,gp,tipo):
+def ShapeFunction(X,gp,tipo):
     '''
     Esta función define funciones de forma y sus derivadas \
     en coordenadas naturales para un elemento finito de \

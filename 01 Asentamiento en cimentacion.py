@@ -1,6 +1,6 @@
 from pmef.pre import delaunay, founMesh, BC_2Dx, BC_2Dy
 from pmef.pro import AssembleMatrix, AssembleVector, ApplyBC
-from pmef.pos import Deformada, plot_deform
+from pmef.pos import deform, plot_deform
 
 import time
 from numpy import array, zeros, append
@@ -15,7 +15,7 @@ tonf = 1000*kgf
 gravity = array([0.0,-1.0,0.0])
 class ProblemData:
 	SpaceDim = 2
-	pde="Elasticidad"
+	pde="Elasticity"
 class ElementData:
 	dof = 2
 	nodes = 3
@@ -87,7 +87,7 @@ print("Solver demoró %.4f segundos"%(time.time()-start))
 #################              POSTPROCESAMIENTO            ####################
 print("Generando gráfica...")
 FS = 10 # Factor de Amplificación para deformada
-defo = Deformada(Mesh.Nodos,u,FS)
+defo = deform(Mesh.Nodos,u,FS)
 
 fig, ax = plt.subplots(figsize=(15,6),dpi=100)
 ax.plot(defo[:nd+1,0],defo[:nd+1,1],'k-',lw=4)
