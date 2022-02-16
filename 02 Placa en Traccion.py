@@ -46,7 +46,7 @@ class Mesh:
 gravity = array([0.0,-1.0,0.0])
 class ProblemData:
 	SpaceDim = 2
-	pde="Elasticidad"
+	pde="Elasticity"
 class ModelData:
 	E  = 2.1e10 
 	v = 0.2
