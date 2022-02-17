@@ -1,6 +1,6 @@
 from pmef.pre import BC_2Dy, BC_2Dx
 from pmef.pro import AssembleMatrix, AssembleVector, ApplyBC
-from pmef.pos import deform, plot_deform
+from pmef.pos import deform, plot2D_deform
 
 import time
 from numpy import array, zeros, append
@@ -201,7 +201,7 @@ defo = deform(Mesh.Nodos,u,FS)
 
 fig, ax = plt.subplots(figsize=(15,6),dpi=200)
 u_plot = u[1::2]/cm # u para el ploteo
-plot_deform(u_plot,defo,Mesh.Conex,ax,color='RdYlGn',bar_label='Desplazamiento X (cm)')
+plot2D_deform(u_plot,defo,Mesh.Conex,ax,color='RdYlGn',bar_label='Desplazamiento X (cm)')
 
 # from pmef.pos import graph
 # fig, ax = plt.subplots(figsize=(15,2),dpi=200)

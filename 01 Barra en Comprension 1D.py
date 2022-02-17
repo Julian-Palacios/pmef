@@ -64,3 +64,8 @@ plt.plot(defo,zeros(Mesh.NN),'ro:',markersize=4.0,label='Deformada $FS=100$')
 plt.plot(Mesh.Nodos,u_plot,'b--',lw=0.7,label='$u$ (FEM)')
 plt.ylim([-.4,0.1]); plt.ylabel('Deformación Axial (cm)')
 plt.legend(); plt.show()
+
+# fig, ax = plt.subplots(figsize=(15,6))#,dpi=200)
+# graph(Mesh.Nodos,Mesh.Conex,ax,logo=False,labels=True,d=0.003)
+# graph(defo,Mesh.Conex,ax,logo=True,color='r')
+# plt.show()

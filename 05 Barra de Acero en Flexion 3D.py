@@ -1,5 +1,6 @@
 from pmef.pre import GenBrickMesh_3D
 from pmef.pro import AssembleMatrix, AssembleVector, ApplyBC
+from pmef.pos import deform, graph
 
 from scipy.sparse.linalg import spsolve
 from numpy import array, zeros
@@ -26,8 +27,7 @@ class ElementData:
 
 #################             PREPROCESAMIENTO            ####################
 L = 1.0
-a = 0.05
-Mesh = GenBrickMesh_3D(L,a,a,2)
+Mesh = GenBrickMesh_3D(L,0.2,0.2,2)
 Mesh.Nodos = Mesh.Nodos
 # print(Mesh.Nodos,'\n',Mesh.Conex)
 
@@ -38,9 +38,6 @@ for i in range(Mesh.NN):
         BC_data.append([i,1,1,0.0])
         BC_data.append([i,1,2,0.0])
         BC_data.append([i,1,3,0.0])
-    # else:
-        # BC_data.append([i,1,1,0.0])
-        # BC_data.append([i,1,2,0.0])
     if x == L:
         BC_data.append([i,0,3,-1e5])
 BC_data = array(BC_data)
@@ -60,14 +57,16 @@ u = spsolve(K.tocsr(),f)
 print("Solver demoró %.4f segundos"%(time.time()-start))
 
 #################              POSTPROCESAMIENTO            ####################
-# fig = plt.figure(figsize=(8,8))#,dpi=200)
-# ax = fig.add_subplot(111,projection='3d')
-# ax.plot([0,L],[-L/2,L/2],[-L/2,L/2],alpha=0.0)
-# ax.plot(Mesh.Nodos[:,0],Mesh.Nodos[:,1],Mesh.Nodos[:,2],'ko',markersize=3.0)
-# ax.plot(Mesh.Nodos[:,0]+u[0::3],Mesh.Nodos[:,1]+u[1::3],Mesh.Nodos[:,2]+u[2::3],'ro',markersize=3.0)
-# plt.show()
+fig = plt.figure(figsize=(8,8),dpi=100)
+ax = fig.add_subplot(111,projection='3d')
+graph(Mesh.Nodos,Mesh.Conex,ax,color='k')
+
+defo = deform(Mesh.Nodos,u,FS=10.0)
+graph(defo,Mesh.Conex,ax,color='r')
+plt.tight_layout(); plt.show()
 
 # for i in range(Mesh.NN):
 #     if Mesh.Nodos[i,0]==L:
 #         print('Disp. of Node %i at (%.4f,%.4f,%.4f):'%(i,
 #                 Mesh.Nodos[i,0],Mesh.Nodos[i,1],Mesh.Nodos[i,2]),u[i*3:(i+1)*3])
+
