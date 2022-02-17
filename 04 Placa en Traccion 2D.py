@@ -48,8 +48,8 @@ class ProblemData:
 	SpaceDim = 2
 	pde="Elasticity"
 class ModelData:
-	E  = 2.1e10 
-	v = 0.2
+	E  = 2e11
+	v = 0.3
 	thickness = 0.04
 	state = 'PlaneStress'
 	density = 7860

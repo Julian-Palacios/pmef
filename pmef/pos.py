@@ -28,7 +28,7 @@ def deform(X,u,FS=10.0):
         for i in range(NN):
             X_def[i]=X[i]+FS*array([u[2*i],u[2*i+1]])
     else:
-        print('Debe programar para %iD!'%m)
+        print('Debe programar para %iD!'%dim)
     return X_def
 
 def graph(x,cnx,ax,logo=True,labels=False):

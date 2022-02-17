@@ -105,12 +105,12 @@ def ApplyBC(A, f, BC_data, Mesh, ElementData,ProblemData, ModelData,showBC=False
     '''
     for bc in BC_data:
         if int(bc[1]) == 0:  # Neumann
-            dof = int(ElementData.dof*bc[0]+bc[2])-1
+            dof = int(ElementData.dof*bc[0] + bc[2]-1)
             if showBC==True: print("CB Neumann, DOF:",dof)
             if A[dof,dof] == 1.0: continue # ALREADY is Dirichlet BC
             f[dof] = f[dof] + bc[3]
         elif int(bc[1]) == 1:# Dirichlet
-            dof = int(ElementData.dof*bc[0]+bc[2])-1
+            dof = int(ElementData.dof*bc[0] + bc[2]-1)
             if showBC==True: print("CB Dirichlet, DOF:",dof)
             A[dof,:]  = 0.0
             A[dof,dof] = 1.0
@@ -157,10 +157,9 @@ def Elasticity(A, X, N, dN,dNN, ProblemData, ElementData, ModelData, dX, tipo):
                 Nmat[i, i::m] = N
                 f = ModelData.selfweight*ModelData.gravity
                 A = Nmat*f*area*dX
-            print('Hola!',A)
 
         else:
-            print("Debes programar para el tipo %s aún"%tipo)
+            print("Debes programar para el tipo %s aún."%tipo)
 
     elif ProblemData.SpaceDim == 2:
         t = ModelData.thickness
@@ -218,6 +217,44 @@ def Elasticity(A, X, N, dN,dNN, ProblemData, ElementData, ModelData, dX, tipo):
         #
         else:
             print("Debes programar para el tipo %s aún"%tipo)
+
+    elif ProblemData.SpaceDim == 3:
+        if tipo == 'MatrizK':
+            E, v = ModelData.E, ModelData.v
+            # Formando Matriz D
+            D = zeros((6, 6))
+            λ = E * v / ((1.0 + v) * (1.0 - 2.0 * v))
+            μ = E / (2.0 * (1.0 + v))
+
+            D[0, 0] = D[1, 1] = D[2, 2] = λ + 2*μ 
+            D[3, 3] = D[4, 4] = D[5, 5] = μ
+            D[0, 1] = D[1, 0] = D[0, 2] = D[2, 0] = D[1, 2] = D[2, 1] = λ
+
+            # Formando Matriz B
+            B = zeros((6, m * n))
+
+            for i in range(m):
+                B[i, i::m] = dN[i]
+
+            B[3, 0::m] = dN[1]
+            B[3, 1::m] = dN[0]
+            B[4, 1::m] = dN[2]
+            B[4, 2::m] = dN[1]
+            B[5, 0::m] = dN[2]
+            B[5, 2::m] = dN[0]
+
+            A = B.T@D@B *dX
+
+        elif tipo == 'VectorF':
+            # Formando Matriz F
+            Nmat=zeros((m,m*n))
+            for i in range(m):
+                Nmat[i, i::m] = N[:].T
+                f = ModelData.selfweight*ModelData.gravity[0:m]
+                A = Nmat.T@f*dX # *t
+                
+        else:
+            print("Debes programar para el tipo %s aún"%tipo)
     else:
         print("Debes programar para %sD aún"%ProblemData.SpaceDim)
     return A
@@ -242,7 +279,8 @@ def GaussianQuadrature(puntos, dim):
         elif puntos == 2:	# Integración de Gauss de 2 puntos en 1D
             gp     = zeros((2,2))
             gp[0,:] = 1.0
-            gp[1,0], gp[1,1] =  -1/3**0.5, 1/3**0.5
+            a = 0.5773502691896257
+            gp[1,0], gp[1,1] =  -a, a
             #
         elif puntos == 4: # Integración de Gauss de 4 puntos en 1D
             gp     = zeros((2,4))
@@ -261,12 +299,29 @@ def GaussianQuadrature(puntos, dim):
         elif puntos == 4:## Integración de Gauss de 4 puntos para Quad4
             gp     = zeros((3,4))
             gp[0,:] = 1.0
-            gp[1,0], gp[1,1], gp[1,2], gp[1,3] = -1.0/3**0.5, 1.0/3**0.5, 1.0/3**0.5,-1.0/3**0.5
-            gp[2,0], gp[2,1], gp[2,2], gp[2,3] = -1.0/3**0.5,-1.0/3**0.5, 1.0/3**0.5, 1.0/3**0.5
+            a = 0.5773502691896257
+            gp[1,0], gp[1,1], gp[1,2], gp[1,3] = -a, a, a,-a
+            gp[2,0], gp[2,1], gp[2,2], gp[2,3] = -a,-a, a, a
         else:
             print("Debes programar para %s puntos aún"%puntos)
+    elif dim == 3:
+
+        if puntos == 8:
+            a = 3**-0.5#0.5773502691896257
+
+            gp = zeros((4, 8))
+            gp[0, :] = 1.0
+            gp[1, 0], gp[1, 1], gp[1, 2], gp[1, 3], gp[1, 4], gp[1, 5], gp[
+                1, 6], gp[1, 7] = -a, a, a, -a, -a, a, a, -a
+            gp[2, 0], gp[2, 1], gp[2, 2], gp[2, 3], gp[2, 4], gp[2, 5], gp[
+                2, 6], gp[2, 7] = -a, -a, a, a, -a, -a, a, a
+            gp[3, 0], gp[3, 1], gp[3, 2], gp[3, 3], gp[3, 4], gp[3, 5], gp[
+                3, 6], gp[3, 7] = -a, -a, -a, -a, a, a, a, a
+        else:
+            print("Debes programar para %s puntos aún." %puntos)
+
     else:
-        print("Debes programar para %sD aún"%dim)
+        print("Debes programar para %sD aún."%dim)
     
     return gp.T
 
@@ -332,9 +387,26 @@ def ShapeFunction(X,gp,tipo):
         dN[0] = 0.25*a[:]*(1 + b[:]*η) # dN,ξ = 0.25ξi(1+ηiη)
         dN[1] = 0.25*b[:]*(1 + a[:]*ξ) # dN,η = 0.25ηi(1+ξiξ)
         #
+    elif tipo == 'Brick8':
+
+        N, dN, J = zeros((3, 8)), zeros((3, 8)), zeros((3, 3))
+        a = array([-1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0, -1.0])
+        b = array([-1.0, -1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0])
+        c = array([-1.0, -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0])
+
+        ξ = gp[1]
+        η = gp[2]
+        ζ = gp[3]
+
+        N = 0.125 * (1.0 + a[:] * ξ) * (1.0 + b[:] * η) * (1.0 + c[:] * ζ)
+
+        dN[0] = 0.125 * a[:] * (1 + b[:] * η) * (1.0 + c[:] * ζ)
+        dN[1] = 0.125 * b[:] * (1 + a[:] * ξ) * (1.0 + c[:] * ζ)
+        dN[2] = 0.125 * c[:] * (1 + a[:] * ξ) * (1.0 + b[:] * η)
+
     else:
         print("Debes programar para el tipo %s aún"%tipo)
-    #
+    
     # Calculamos la matriz jacobiana y su determinante
     try:
         j
@@ -344,7 +416,7 @@ def ShapeFunction(X,gp,tipo):
             j = abs(det(J))
             dN = inv(J)@dN
         else:
-            j=abs(J[0])
+            j = abs(J[0])
             dN = dN/j
     if j<0: 
         print("Cuidado: El jacobiano es negativo!")

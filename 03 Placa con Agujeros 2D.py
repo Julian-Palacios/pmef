@@ -166,8 +166,8 @@ class ElementData:
 	noInt =  1
 	type = 'Tri3'
 class ModelData:
-    E  = 2.1e10 # 1000
-    v = 0.2
+    E  = 2e11
+    v = 0.3
     thickness = 0.04
     state = 'PlaneStress'
     density = 7860
@@ -202,3 +202,8 @@ defo = deform(Mesh.Nodos,u,FS)
 fig, ax = plt.subplots(figsize=(15,6),dpi=200)
 u_plot = u[1::2]/cm # u para el ploteo
 plot_deform(u_plot,defo,Mesh.Conex,ax,color='RdYlGn',bar_label='Desplazamiento X (cm)')
+
+# from pmef.pos import graph
+# fig, ax = plt.subplots(figsize=(15,2),dpi=200)
+# graph(defo,Mesh.Conex,ax,logo=False)
+# plt.tight_layout(); plt.show()
