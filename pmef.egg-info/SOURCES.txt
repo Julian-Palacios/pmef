@@ -3,6 +3,7 @@ setup.py
 pmef/__init__.py
 pmef/pos.py
 pmef/pre.py
+pmef/pro copy.py
 pmef/pro.py
 pmef.egg-info/PKG-INFO
 pmef.egg-info/SOURCES.txt

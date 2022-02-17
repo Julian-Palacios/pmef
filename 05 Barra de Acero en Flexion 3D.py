@@ -57,11 +57,11 @@ u = spsolve(K.tocsr(),f)
 print("Solver demoró %.4f segundos"%(time.time()-start))
 
 #################              POSTPROCESAMIENTO            ####################
+defo = deform(Mesh.Nodos,u,FS=10.0)
+
 fig = plt.figure(figsize=(8,8),dpi=100)
 ax = fig.add_subplot(111,projection='3d')
 graph(Mesh.Nodos,Mesh.Conex,ax,color='k')
-
-defo = deform(Mesh.Nodos,u,FS=10.0)
 graph(defo,Mesh.Conex,ax,color='r')
 plt.tight_layout(); plt.show()
 
