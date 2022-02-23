@@ -78,7 +78,6 @@ def graph(x,cnx,ax,color='k',d=0.01,logo=True,labels=False):
             ie += 1
 
     elif dim == 3:
-        # print('Hacer algo...')
         for ii in range(len(x)):
             ax.plot(x[ii,0],x[ii,1],x[ii,2],color+'o',markersize=1.5)
             if labels == True:
