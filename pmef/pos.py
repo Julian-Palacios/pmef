@@ -4,7 +4,6 @@ import matplotlib.image as image
 import matplotlib.colors as colors
 import matplotlib.tri as tri
 import matplotlib.cm
-from sqlalchemy import false
 
 
 def deform(X,u,FS=10.0):
@@ -34,6 +33,77 @@ def deform(X,u,FS=10.0):
     else:
         print('Debe programar para %iD!'%dim)
     return X_def
+
+def stress(u, Mesh, ElementData, ProblemData, ModelData):
+    "Función que obtiene los esfuerzos en los nodos."
+    from pmef.pro import ShapeFunction, DofMap
+
+    n, dim = ElementData.nodes, ProblemData.SpaceDim
+
+    if dim == 1:
+        if n == 1:
+            print("Debes programar para %s puntos aún." %n)
+            #
+        elif n == 2:
+            print("Debes programar para %s puntos aún." %n)
+            #
+        elif n == 4:
+            print("Debes programar para %s puntos aún." %n)
+        else:
+            print("Debes programar para %s puntos aún."%n)
+            
+    elif dim == 2:
+        E,v = ModelData.E, ModelData.v # Estado plano de esfuerzos
+        if ModelData.state == 'PlaneStress': pass
+        elif ModelData.state == 'PlaneStrain': E,v = E/(1.0-v*2),v/(1-v)
+        else: print('El estado plano solo puede ser "PlaneStress" o "PlaneStrain"')
+        # Formando Matriz D
+        D = zeros((3,3))
+        D[0,0], D[1,1], D[0,1], D[1,0]= 1.0, 1.0, v, v
+        D[2,2] = 0.5*(1.0-v)
+        D = E*D/(1-v**2)
+
+        if n == 1:
+            print("Debes programar para %s n aún." %n)
+        elif n == 4: # 4 puntos para Quad4
+            gp     = zeros((3,4))
+            a = 1
+            gp[1,0], gp[1,1], gp[1,2], gp[1,3] = -a, a, a,-a
+            gp[2,0], gp[2,1], gp[2,2], gp[2,3] = -a,-a, a, a
+        else:
+            print("Debes programar para %s puntos aún"%n)
+    elif dim == 3:
+        if n == 8:
+            print("Debes programar para %s puntos aún." %n)
+        else:
+            print("Debes programar para %s puntos aún." %n)
+    else:
+        print("Debes programar para %sD aún."%dim)
+
+    
+    N = Mesh.NN
+    sig = zeros((N,3),'float')
+    count = zeros(Mesh.NN,'int')
+    m = ElementData.dof
+    for connect_element in Mesh.Conex:
+        points = gp.T
+        points[:,0] = connect_element
+        x_element = Mesh.Nodos[connect_element]
+
+        for point in points:
+            nodo = int(point[0])
+            [N, dN,ddN, j] = ShapeFunction(x_element, point, ElementData.type)
+            B = zeros((3,m*n))
+            for i in range(m):
+                B[i, i::m] = dN[i]
+            B[2, 0::m] = dN[1]
+            B[2, 1::m] = dN[0]
+            dof = DofMap(ElementData.dof, connect_element, ElementData.nodes)
+            sig[nodo] = sig[nodo] + D@B@u[dof]
+        count[connect_element] += 1
+    for i in range(Mesh.NN):
+        sig[i] = sig[i]/count[i]
+    return sig
 
 def graph(x,cnx,ax,color='k',d=0.01,logo=True,labels=False):
     '''

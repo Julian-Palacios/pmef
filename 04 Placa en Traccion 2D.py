@@ -1,6 +1,6 @@
 from pmef.pre import load_obj, BC_2Dy
 from pmef.pro import AssembleMatrix, AssembleVector, ApplyBC
-from pmef.pos import deform, plot2D_deform
+from pmef.pos import deform, plot2D_deform, stress
 
 import time
 from numpy import array, zeros, append
@@ -82,3 +82,9 @@ defo = deform(Mesh.Nodos,u,FS)
 fig, ax = plt.subplots(figsize=(15,6),dpi=200)
 u_plot = u[0::2]/cm # u para el ploteo
 plot2D_deform(u_plot,defo,Mesh.Conex,ax,bar_label='Desplazamiento X (cm)')
+
+sig = stress(u, Mesh, ElementData, ProblemData, ModelData)
+j = 0 # sxx
+defo = deform(Mesh.Nodos,u,FS=100)
+fig, ax = plt.subplots(figsize=(15,6),dpi=200)
+plot2D_deform(sig[:,j]/(kgf/cm**2),defo,Mesh.Conex,ax,bar_label='Sxx (kg/cm2)')
