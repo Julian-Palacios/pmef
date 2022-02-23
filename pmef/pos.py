@@ -35,7 +35,7 @@ def deform(X,u,FS=10.0):
     return X_def
 
 def stress(u, Mesh, ElementData, ProblemData, ModelData):
-    "Función que obtiene los esfuerzos en los nodos."
+    "Función que obtiene esfuerzos en los nodos."
     from pmef.pro import ShapeFunction, DofMap
 
     n, dim = ElementData.nodes, ProblemData.SpaceDim
@@ -43,10 +43,8 @@ def stress(u, Mesh, ElementData, ProblemData, ModelData):
     if dim == 1:
         if n == 1:
             print("Debes programar para %s puntos aún." %n)
-            #
         elif n == 2:
             print("Debes programar para %s puntos aún." %n)
-            #
         elif n == 4:
             print("Debes programar para %s puntos aún." %n)
         else:
