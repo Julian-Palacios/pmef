@@ -408,8 +408,7 @@ def ShapeFunction(X,gp,tipo):
         print("Debes programar para el tipo %s aún"%tipo)
     
     # Calculamos la matriz jacobiana y su determinante
-    try:
-        j
+    try: j
     except NameError:
         J=dN@X
         if len(J) >1: 
@@ -444,4 +443,118 @@ def DofMap(DofNode, connect, NodesElement):
     return dof
 
 
+def Bernoulli(A, x, N, dN, ddN, ProblemData, ElementData, ModelData, dX, tipo):
+    '''Función que retorna la matriz de un EF evaluado en un Punto de Gauss
+    '''
+    n = ElementData.nodes
+    m = ElementData.dof
+    EI = ModelData.EI
+    Area = ModelData.Area
+    ##
+    if tipo == 'MatrizK':
+        A = EI*ddN.T@ddN
+        A = A*dX
+        # print(ddN,A)
+    elif tipo == 'MasaConsistente':
+        rho = ModelData.density
+        A = rho*N.T@N*dX*Area
+        ##
+    elif tipo == 'MasaConcentrada':
+        rho = ModelData.density
+        B = rho*N.T@N*dX*Area
+        ##
+        one = zeros(m*n)
+        one[:] = 1.0
+        B = B@one
+        A = zeros((m*n, m*n))
+        # Concentrando Masas (Mejorar proceso si |A| <= 0)
+        for i in range(m*n):
+            A[i, i] = B[i]
+        ##
+    elif(tipo == 'VectorF'):
+        # Formando matriz N para v
+        N_v = zeros((m*n, 1))
+        N_v = N
+        A = zeros((m*n, 1))
+        f = ModelData.fy
+        A = N_v*f*dX
+        ##
+    else:
+        print("Debes programar para el tipo %s aún" % tipo)
+    return A
 
+
+def Timoshenko(A, x, N, dN, ddN, ProblemData, ElementData, ModelData, dX, tipo):
+    '''Función que retorna la matriz de un EF evaluado en un Punto de Gauss
+    '''
+    n = ElementData.nodes
+    m = ElementData.dof
+    EI = ModelData.EI
+    GAs = ModelData.GAs
+    Area = ModelData.Area
+    ##
+    if tipo == 'MatrizK':
+        if (ProblemData.SpaceDim == 1):
+            # Formando N para theta
+            N_theta = zeros((1, m*n))
+            N_theta[0, 0::m] = N[0]
+            # Formando N para v
+            N_v = zeros((1, m*n))
+            N_v[0, 1::m] = N[0]
+            # Formando B para theta
+            B_theta = zeros((1, m*n))
+            B_theta[0, 0::m] = dN[0]
+            # Formando B para for v
+            B_v = zeros((1, m*n))
+            B_v[0, 1::m] = dN[0]
+            ##
+        elif (ProblemData.SpaceDim == 2):
+            print('Solo es válido para 1D')
+        elif (ProblemData.SpaceDim == 3):
+            print('Solo es válido para 1D')
+        ##
+        # Calculando Matriz
+        A = B_theta.T*EI@B_theta + N_theta.T*GAs@N_theta - N_theta.T*GAs@B_v
+        A = A - B_v.T*GAs@N_theta + B_v.T*GAs@B_v
+        A = A*dX
+    ##
+    elif tipo == 'MasaConsistente':
+        rho = ModelData.density
+        Nmat = zeros((1,4),'float')
+        Nmat[:,1::2] = N
+        A = rho*Nmat.T@Nmat*dX*Area
+        # Artificio para no obetener una Matriz singular
+        A[0, 0] = A[0, 0]+0.01*A[1, 1]
+        A[2, 2] = A[2, 2]+0.01*A[3, 3]
+    ##
+    elif tipo == 'MasaConcentrada':
+        rho = ModelData.density
+        Nmat = zeros((1,4),'float')
+        Nmat[:,1::2] = N
+        B = rho*Nmat.T@Nmat*dX*Area
+        # Artificio para no obetener una Matriz singular
+        B[0, 0] = B[0, 0]+0.01*B[1, 1]
+        B[2, 2] = B[2, 2]+0.01*B[3, 3]
+        ##
+        one = zeros(m*n)
+        one[:] = 1.0
+        B = B@one
+        A = zeros((m*n, m*n))
+        # Concentrando Masas
+        for i in range(m*n):
+            A[i, i] = B[i]
+
+    elif(tipo == 'VectorF'):
+        # Formando matriz N para theta
+        N_theta = zeros((1, m*n))
+        N_theta[0, 0::m] = N[0]
+        # Formando matriz N para v
+        N_v = zeros((1, m*n))
+        N_v[0, 1::m] = N[0]
+        #
+        f = ModelData.fy
+        A = N_v*f*dX
+
+    else:
+        print("Debes programar para el tipo %s aún" % tipo)
+    return A

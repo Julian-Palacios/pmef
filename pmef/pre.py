@@ -13,7 +13,7 @@ def LinearMesh(L,Ne,x0=0):
             x0:     Posición del primer nodo.
     '''
     # Crea arreglo de nodos
-    x = linspace(x0,x0+18.0,Ne+1)
+    x = linspace(x0,x0+L,Ne+1)
     # Crea arreglo de conexiones
     cnx = zeros((Ne,2),'int')
     cnx[:,0],cnx[:,1] = range(Ne), range(1,Ne+1)

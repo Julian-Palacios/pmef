@@ -133,7 +133,7 @@ def plot2D_deform(up,defo,cnx,ax,color='RdYlGn_r',bar_label='Resultados',logo=Tr
         tris = quads_to_tris(cnx)
         triangulation = tri.Triangulation(defo[:,0], defo[:,1], triangles=tris)
     else: print('pmef no soporta el mesh proporcionado para la gráfica.')
-    ax.tricontourf(triangulation, up, cmap=color, alpha=1.0)
+    ax.tricontourf(triangulation, up, cmap=color, alpha=1.0,levels=50)
     norm = colors.Normalize(vmin=min(up), vmax=max(up))
     plt.colorbar(matplotlib.cm.ScalarMappable(norm=norm, cmap=color),
                     orientation='vertical',label=bar_label)
