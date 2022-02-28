@@ -25,7 +25,7 @@ class ModelData:
 	gravity = gravity
 Lx,Ly = 10.0,0.5
 
-#
+# Usando elementos Tri3
 class ElementData:
 	dof = 2
 	nodes = 3
@@ -49,7 +49,6 @@ x = gen2Dpoints(Lx,Ly,4)
 
 from scipy.spatial import Delaunay
 from pmef.pre import delaunay
-
 # cnx = Delaunay(x).simplices
 cnx = delaunay(x)
 # fig, ax = plt.subplots(figsize=(15,1),dpi=200)
@@ -65,14 +64,14 @@ print('NN,NC:',Mesh.NN,Mesh.NC)
 #
 
 
-#
-class ElementData:
-	dof = 2
-	nodes = 4
-	noInt =  4
-	type = 'Quad4'
-from pmef.pre import GenQuadMesh_2D
-Mesh = GenQuadMesh_2D(Lx,Ly,4)
+# Usando Elementos Quad
+# class ElementData:
+# 	dof = 2
+# 	nodes = 4
+# 	noInt =  4
+# 	type = 'Quad4'
+# from pmef.pre import GenQuadMesh_2D
+# Mesh = GenQuadMesh_2D(Lx,Ly,4)
 # print(Mesh.Conex[:10])
 # fig, ax = plt.subplots(figsize=(15,1))
 # graph(Mesh.Nodos,Mesh.Conex,ax,labels=True,logo=False)
