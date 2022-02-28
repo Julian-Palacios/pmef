@@ -72,9 +72,8 @@ print('NN,NC:',Mesh.NN,Mesh.NC)
 # 	type = 'Quad4'
 # from pmef.pre import GenQuadMesh_2D
 # Mesh = GenQuadMesh_2D(Lx,Ly,4)
-# print(Mesh.Conex[:10])
 # fig, ax = plt.subplots(figsize=(15,1))
-# graph(Mesh.Nodos,Mesh.Conex,ax,labels=True,logo=False)
+# graph(Mesh.Nodos,Mesh.Conex,ax,labels=True)
 # plt.show()
 #
 

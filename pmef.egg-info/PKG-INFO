@@ -1,11 +1,11 @@
 Metadata-Version: 1.0
 Name: pmef
-Version: 0.4.3
+Version: 0.4.4
 Summary: Librería para aprender a Programar el Metodo de Elementos Finitos
 Home-page: https://github.com/Julian-Palacios/pmef
 Author: Julian Palacios, Jorge Lulimachi, Humberto Rojas y Luis Baldeon
 Author-email: jpalaciose@uni.pe
-License: MIT
+License: GPL-3.0
 Description: ## PMEF
         ## Programando el Método de Elementos Finitos
         

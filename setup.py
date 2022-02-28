@@ -9,8 +9,8 @@ setup(
     packages=['pmef'],
     # Needed for dependencies
     install_requires=['numpy','scipy','matplotlib'],
-    version='0.4.3',
-    license='MIT',
+    version='0.4.4',
+    license='GPL-3.0',
     description='Librería para aprender a Programar el Metodo de Elementos Finitos',
     keywords=['Elementos Finitos','Funciones de Forma','Mapeo Isoparamétrico'],
     # We will also need a readme eventually (there will be a warning)
