@@ -24,6 +24,53 @@ def LinearMesh(L,Ne,x0=0):
         Conex = cnx
     return Mesh
 
+def GenQuadMesh_2D(Lx, Ly, ne):
+    '''
+    Función que crea el mesh de elementos rectangulares en una sección
+    rectangular.
+    '''
+    
+    if min(Lx, Ly) == Lx:
+        nx = ne
+        ms_x = Lx/nx
+        ny = round(Ly/ms_x)
+        ms_y = Ly/ny
+    else:
+        ny = ne
+        ms_y = Ly/ny
+        nx = round(Lx/ms_y)
+        ms_x = Lx/nx
+
+    # print(ms_x,ms_y,nx,ny)
+    ni		= 0
+    noNodes = (nx+1)*(ny+1)
+    x	= zeros((noNodes, 2),'float')
+    for j in range(ny+1):
+        for i in range(nx+1):
+            x[ni]= (ms_x*i,ms_y*j)
+            ni = ni + 1 
+
+    noElements = nx*ny
+    connect = zeros((noElements, 4), 'int')
+
+    k = 0
+    for i in range(0, ny):
+        # for j in range(nx):
+        for j in range(0, nx):
+            connect[k, 0] = j+((i)*(nx+1))
+            connect[k, 1] = j+((i)*(nx+1))+ 1
+            connect[k, 2] = j+((i+1)*(nx+1))+1
+            connect[k, 3] = j+((i+1)*(nx+1))
+            k = k + 1
+
+    class Mesh:
+        NN 		= noNodes
+        NC 		= noElements
+        Nodos 	= x
+        Conex 	= connect
+
+    return Mesh
+
 def founMesh(Lx1,Ly1,Lx2,Ly2,mz1):
     '''
     Función que genera Mesh tipo U para cimentaciones.
@@ -251,6 +298,11 @@ def getPolygon(xyo,elems,xd):
     pol = pol[args]
     return append(pol,pol[0])
 
+def triArea(coor):
+    x,y = coor[:,0],coor[:,1]
+    area=0.5*( x[0]*(y[1]-y[2]) + x[1]*(y[2]-y[0]) + x[2]*(y[0]-y[1]) )
+    return area
+
 def updateMesh(xyo,xd,elems,selec):
     '''
     Función que actualiza el Mesh (agrega elementos y nodos).
@@ -262,6 +314,8 @@ def updateMesh(xyo,xd,elems,selec):
     xd = append(xd,[xyo],axis=0)
     for i in range(len(pol)-1):
         temp = [len(xd)-1,pol[i],pol[i+1]]
+        ar = triArea(xd[temp])
+        if ar == 0.0: continue # Area of element is zero
         elems2 = append(elems2,[temp],axis=0)
     return xd,elems2
 
@@ -281,7 +335,6 @@ def delaunay(coor):
 
     x = array([[xi,yi],[xf,yi],[xf,yf],[xi,yf]])
     cnx = array([[0,1,2],[0,2,3]])
-
     for i in range(len(coor)):
         # print('node %i: (%8.5f,%8.5f)'%(i,coor[i,0],coor[i,1]))
         ie = 0
