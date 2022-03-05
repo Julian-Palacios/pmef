@@ -1,6 +1,8 @@
 from numpy import zeros, array, linspace, delete, append, unique
 from numpy import dot, sin, arccos, arctan2
 from numpy.linalg import norm
+import matplotlib.pyplot as plt
+from pmef.pos import graph
 
 # Funciones para generar Mesh
 def LinearMesh(L,Ne,x0=0):
@@ -319,7 +321,7 @@ def updateMesh(xyo,xd,elems,selec):
         elems2 = append(elems2,[temp],axis=0)
     return xd,elems2
 
-def delaunay(coor):
+def delaunay(coor,steps=False):
     '''
     Función que genera un Mesh uniforme basado en la triangulación de Delaunay \
     a partir de coordenadas.
@@ -351,6 +353,10 @@ def delaunay(coor):
                 # print('The point %i is out of circle of element %i :('%(i,ie))
             ie += 1
         x,cnx = updateMesh(coor[i],x,cnx,selec)
+        if steps: 
+            fig, ax = plt.subplots(dpi=150)
+            graph(x,cnx,ax,logo=False,labels=True)
+            plt.axis('off'); plt.tight_layout(); plt.show()
     x = coor
     selec = []
     for ie in range(len(cnx)):
