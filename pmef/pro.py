@@ -113,6 +113,7 @@ def ApplyBC(A, f, BC_data, Mesh, ElementData,ProblemData, ModelData,showBC=False
             A:      Matriz del sistema global después de aplicar las CB.
             f:      Vector de fuerzas del sistema global después de aplicar las CB.       
     '''
+    A = A.tolil()
     for bc in BC_data:
         if int(bc[1]) == 0:  # Neumann
             dof = int(ElementData.dof*bc[0] + bc[2]-1)

@@ -91,10 +91,12 @@ start = time.time()
 K = AssembleMatrix(Mesh, ElementData, ProblemData, ModelData, 'MatrizK')
 print("AssembleMatrix demoró %.4f segundos"%(time.time()-start))
 f = AssembleVector(Mesh, ElementData, ProblemData, ModelData, "VectorF")
+start = time.time()
 [K, f] = ApplyBC(K, f, BC_data, Mesh, ElementData, ProblemData,  ModelData)
+print("ApplyBC demoró %.4f segundos"%(time.time()-start))
 # Resuelve el sistema de ecuaciones
 start = time.time()
-u = spsolve(K,f)
+u = spsolve(K.tocsr(),f)
 print("Solver demoró %.4f segundos"%(time.time()-start))
 
 for i in range(len(Mesh.Nodos)):
