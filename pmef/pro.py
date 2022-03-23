@@ -1,6 +1,6 @@
 from numpy import zeros, array
 from numpy.linalg import det, inv
-from scipy.sparse import lil_matrix
+from scipy.sparse import lil_matrix, csr_matrix
 
 # Funciones principales
 def AssembleMatrix(Mesh, ElementData, ProblemData, ModelData, MatrixType):
@@ -16,10 +16,13 @@ def AssembleMatrix(Mesh, ElementData, ProblemData, ModelData, MatrixType):
             A:          Arreglo obtenido del ensamble de los arreglos A_e
                         de los elementos finitos.
     '''
-    N = Mesh.NN*ElementData.dof
+    Ndof = Mesh.NN*ElementData.dof
     n = ElementData.nodes*ElementData.dof
-    # Define matriz sparse para la matriz A global 
-    A = lil_matrix((N,N), dtype='float64')
+    # Create ic, ir, data for sparse Matrix
+    ir = zeros(Mesh.NC*n*n,'int')
+    ic = zeros(Mesh.NC*n*n,'int')
+    data = zeros(Mesh.NC*n*n,'float')
+    cont = 0
     # Define Matriz para elementos
     A_e   = zeros(n, dtype='float64')
     A_int = zeros(n, dtype='float64')
@@ -40,12 +43,19 @@ def AssembleMatrix(Mesh, ElementData, ProblemData, ModelData, MatrixType):
         # Mapea los grados de libertad
         dof = DofMap(ElementData.dof, connect_element, ElementData.nodes)
         # Ensambla la matriz del elemento en la matriz global
-        cont=0
-        for k in dof:
-            A[k,dof]=A[k,dof]+A_e[cont]
-            cont=cont+1
+        for i in range(n):
+            for j in range(n):
+                ir[cont] = dof[i]
+                ic[cont] = dof[j]
+                data[cont] = A_e[i,j]
+                cont += 1
+        # for k in dof: # loop for lil_matrix
+        #     A[k,dof]=A[k,dof]+A_e[cont]
+        #     cont += 1
         # Asigna 0 a la Matriz del Elemento
         A_e[:] = 0.0
+    # Define matriz sparse para la matriz A global 
+    A = csr_matrix((data,(ir,ic)),shape=(Ndof,Ndof),dtype='float')
     return A
     
 def AssembleVector(Mesh, ElementData, ProblemData, ModelData, MatrixType):
@@ -119,6 +129,24 @@ def ApplyBC(A, f, BC_data, Mesh, ElementData,ProblemData, ModelData,showBC=False
             print('Condición de Borde Desconocida')
     return A,f
 
+def DofMap(DofNode, connect, NodesElement):
+    '''Función que mapea los grados de libertad correspondientes a un EF.
+
+    Input:
+            DofNode:        Cantidad de grados de libertad por nodo
+            connect:        Nodos del Elemento Finito
+            NodesElement:   Cantidad de nodos del Elemento Finito
+    Output:
+            dof:            Lista que contiene los grados de libertad \
+                            del EF en el sistema global.
+    '''
+    dof=zeros(NodesElement*DofNode,'int')
+    cont = 0
+    for i in range(NodesElement):
+        for j in range(DofNode):
+            dof[cont] = DofNode*connect[i] + j
+            cont += 1
+    return dof
 
 # Funciones MEF
 def Elasticity(A, X, N, dN,dNN, ProblemData, ElementData, ModelData, dX, tipo):
@@ -424,23 +452,6 @@ def ShapeFunction(X,gp,tipo):
         ddN=0.0 # Retorna una matriz de ceros cuando no es Bernoulli
     #
     return N,dN,ddN,j
-
-def DofMap(DofNode, connect, NodesElement):
-    '''Función que mapea los grados de libertad correspondientes a un EF.
-
-    Input:
-            DofNode:        Cantidad de grados de libertad por nodo
-            connect:        Nodos del Elemento Finito
-            NodesElement:   Cantidad de nodos del Elemento Finito
-    Output:
-            dof:            Lista que contiene los grados de libertad \
-                            del EF en el sistema global.
-    '''
-    dof=[]
-    for i in range(NodesElement):
-        for j in range(DofNode):
-            dof.append( DofNode*connect[i] + j)
-    return dof
 
 
 def Bernoulli(A, x, N, dN, ddN, ProblemData, ElementData, ModelData, dX, tipo):

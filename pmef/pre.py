@@ -261,21 +261,20 @@ def BC_2Dy(X,dx,y,tipo,gdl,val):
 
 
 # Funciones para delaunay triangulation
-def circumcenter(tri):
+def checkCircumference(tri,xi,yi):
     '''
-    Función que encuentra el  circumcentro (xo,yo) y su radio ro \
-    dada tres coordenadas.
+    Función que obtiene un parámetro que determina si el punto (xi,yi) se \
+    encuentra dentro de la circunferencia de un triángulo.
     '''
-    s = zeros(3)
-    pts = [2,0,1,2,0]
-    for i in range(1,4):
-        r1 = tri[pts[i-1]]-tri[pts[i]]
-        r2 = tri[pts[i+1]]-tri[pts[i]]
-        s[i-1]=sin(2*arccos(dot(r1,r2)/(norm(r1)*norm(r2))))
-    xo = dot(tri[:,0],s)/sum(s)
-    yo = dot(tri[:,1],s)/sum(s)
-    r = sum((tri[2]-[xo,yo])**2)**0.5
-    return xo,yo,r
+    a11 = tri[0,0]-xi; a12 = tri[0,1]-yi
+    a21 = tri[1,0]-xi; a22 = tri[1,1]-yi
+    a31 = tri[2,0]-xi; a32 = tri[2,1]-yi
+    d2 = xi*xi + yi*yi
+    a13 = tri[0,0]*tri[0,0] + tri[0,1]*tri[0,1] - d2
+    a23 = tri[1,0]*tri[1,0] + tri[1,1]*tri[1,1] - d2
+    a33 = tri[2,0]*tri[2,0] + tri[2,1]*tri[2,1] - d2
+    det = a11*(a22*a33-a23*a32) - a12*(a21*a33-a23*a31) + a13*(a21*a32-a22*a31)
+    return det
 
 def getPolygon(xyo,elems,xd):
     '''
@@ -343,9 +342,8 @@ def delaunay(coor,steps=False):
         selec =[]
         for e in cnx:
             xe = x[e]
-            xo,yo,r = circumcenter(xe)
-            d = sum((coor[i]-[xo,yo])**2)**0.5
-            if d <= 1.000001*r: 
+            det = checkCircumference(xe,coor[i,0],coor[i,1])
+            if det >= -1e-8:
                 selec.append(ie)
                 # print('The point %i is inside circle of element %i :D'%(i,ie))
             else:

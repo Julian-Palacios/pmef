@@ -8,7 +8,7 @@ from pmef.pro import AssembleMatrix, AssembleVector, ApplyBC
 from pmef.pos import graph, deform, plot2D_deform, stress
 
 cm = 0.01
-kgf = 9.81
+kgf = 9.80665
 tonf = 1000*kgf
 
 gravity = array([0.0,-1.0,0.0])
@@ -19,7 +19,7 @@ class ModelData:
 	E  = 2.5e10
 	v = 0.25
 	thickness = 0.5
-	state = 'PlaneStrain'
+	state = 'PlaneStress'
 	density = 2400
 	selfweight= 0.0
 	gravity = gravity
@@ -45,12 +45,16 @@ def gen2Dpoints(Lx,Ly,ne):
       k = k+1
   return coor
 
-x = gen2Dpoints(Lx,Ly,4)
+x = gen2Dpoints(Lx,Ly,20)
 
 from scipy.spatial import Delaunay
 from pmef.pre import delaunay
-# cnx = Delaunay(x).simplices
-cnx = delaunay(x)
+
+start = time.time()
+cnx = Delaunay(x).simplices
+# cnx = delaunay(x)
+print("Delaunay demoró %.4f segundos"%(time.time()-start))
+
 # fig, ax = plt.subplots(figsize=(15,1),dpi=200)
 # graph(x,cnx,ax,labels=True)
 # plt.show()
@@ -83,29 +87,31 @@ BC_data = append(BC_data, BC, axis=0)
 
 
 print("Ensamble en el Sistema global...")
+start = time.time()
 K = AssembleMatrix(Mesh, ElementData, ProblemData, ModelData, 'MatrizK')
+print("AssembleMatrix demoró %.4f segundos"%(time.time()-start))
 f = AssembleVector(Mesh, ElementData, ProblemData, ModelData, "VectorF")
 [K, f] = ApplyBC(K, f, BC_data, Mesh, ElementData, ProblemData,  ModelData)
 # Resuelve el sistema de ecuaciones
 start = time.time()
-u = spsolve(K.tocsr(),f)
+u = spsolve(K,f)
 print("Solver demoró %.4f segundos"%(time.time()-start))
 
 for i in range(len(Mesh.Nodos)):
   if Mesh.Nodos[i,0]==Lx and Mesh.Nodos[i,1]==0.0:
-    print('Desplazamiento en X (cm): %.4f'%(u[i*2+1]*100))
+    print('Desplazamiento en Y (cm): %.4f'%(u[i*2+1]*100))
 
-print("Generando gráfica...")
-FS = 20 # Factor para visualizacion
-defo = deform(Mesh.Nodos,u,FS)
+# print("Generando gráfica...")
+# FS = 20 # Factor para visualizacion
+# defo = deform(Mesh.Nodos,u,FS)
 
-fig, ax = plt.subplots(figsize=(15,6))
-u_plot = u[1::2]/cm # u para el ploteo
-plot2D_deform(u_plot,defo,Mesh.Conex,ax,bar_label='Desplazamiento Y (cm)')
+# fig, ax = plt.subplots(figsize=(15,6))
+# u_plot = u[1::2]/cm # u para el ploteo
+# plot2D_deform(u_plot,defo,Mesh.Conex,ax,bar_label='Desplazamiento Y (cm)')
 
 
-sig = stress(u, Mesh, ElementData, ProblemData, ModelData)
-j = 0 # sxx
-defo = deform(Mesh.Nodos,u,FS=20)
-fig, ax = plt.subplots(figsize=(15,6),dpi=200)
-plot2D_deform(sig[:,j]/(kgf/cm**2),defo,Mesh.Conex,ax,bar_label='Sxx (kg/cm2)')
+# sig = stress(u, Mesh, ElementData, ProblemData, ModelData)
+# j = 0 # sxx
+# defo = deform(Mesh.Nodos,u,FS=20)
+# fig, ax = plt.subplots(figsize=(15,6),dpi=200)
+# plot2D_deform(sig[:,j]/(kgf/cm**2),defo,Mesh.Conex,ax,bar_label='Sxx (kg/cm2)')
