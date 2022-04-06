@@ -1,11 +1,11 @@
 from pmef.pre import LinearMesh
 from pmef.pro import AssembleMatrix, AssembleVector, ApplyBC
-from pmef.pos import deform
+from pmef.pos import deform, K_reduce, V_insert
 
 import time
 from numpy import array, zeros, pi
 from scipy.sparse.linalg import spsolve
-from scipy.linalg import eigh
+from scipy.sparse.linalg import eigsh
 import matplotlib.pyplot as plt
 
 
@@ -35,7 +35,7 @@ print('EI:',ModelData.EI/1e9)
 print('GAs:',ModelData.GAs/1e9)
 #################             PREPROCESAMIENTO            ####################
 Ne = 5
-Mesh = LinearMesh(1.0,Ne)
+Mesh = LinearMesh(10.0,Ne)
 # print(Mesh.Nodos,'\n',Mesh.Conex)
 BC_data = array([[0,1,1,0.0],[0,1,2,0.0],[Ne,0,2,-1e5]],'float')
 
@@ -66,8 +66,16 @@ plt.ylabel('Deformación (cm)')
 plt.legend(); plt.show()
 
 #################               ANÁLISIS MODAL              ####################
-M = AssembleMatrix(Mesh, MassData, ProblemData, ModelData, 'MasaConsistente')
-KK, MM = array(K.todense()), array(M.todense())
-vals, vecs = eigh(KK[2:,2:],MM[2:,2:])
-vp1=vals[0]**0.5/(2*pi)
-print("\nFrecuencia del Modo 1: %s (Hz)"%vp1)
+M = AssembleMatrix(Mesh, MassData, ProblemData, ModelData, 'MasaConcentrada')
+# print(M.todense())
+Kr = K_reduce(K,BC_data,ElementData)
+Mr = K_reduce(M,BC_data,ElementData)
+NM = 5
+vals, vecs = eigsh(Kr, M=Mr, k=NM, which='SM')
+
+i = 0
+plt.figure(figsize=(8,5),dpi=150)
+texto = 'Modo %i, Frecuencia: %8.2f Hz'%(i+1,vals[i]**0.5/(2*pi))
+mode = V_insert(vecs[:,i],BC_data,ElementData)
+plt.plot(mode[1::2],label=texto)
+plt.legend(); plt.show()

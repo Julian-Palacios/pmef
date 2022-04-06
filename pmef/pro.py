@@ -218,7 +218,7 @@ def Elasticity(A, X, N, dN,dNN, ProblemData, ElementData, ModelData, dX, tipo):
             Nmat = zeros((m, m*n))
             rho = ModelData.density
             for i in range(m):
-                Nmat[i, i::m] = N[:]
+                Nmat[i, i::m] = N
             #
             A = rho*Nmat.T@Nmat*dX*t
         #
@@ -226,7 +226,7 @@ def Elasticity(A, X, N, dN,dNN, ProblemData, ElementData, ModelData, dX, tipo):
             Nmat = zeros((m, m*n))
             rho = ModelData.density
             for i in range(m):
-                Nmat[i, i::m] = N[:]
+                Nmat[i, i::m] = N
             #
             B = rho*Nmat.T@Nmat*dX*t
             one = zeros(m*n) + 1.0
@@ -240,7 +240,7 @@ def Elasticity(A, X, N, dN,dNN, ProblemData, ElementData, ModelData, dX, tipo):
             # Formando Matriz F
             Nmat=zeros((m,m*n))
             for i in range(m):
-                Nmat[i, i::m] = N[:].T
+                Nmat[i, i::m] = N
                 f = ModelData.selfweight*ModelData.gravity[0:m]
                 A = Nmat.T@f*dX*t
         #
@@ -273,12 +273,34 @@ def Elasticity(A, X, N, dN,dNN, ProblemData, ElementData, ModelData, dX, tipo):
             B[5, 2::m] = dN[0]
 
             A = B.T@D@B *dX
-
+        #
+        elif tipo == 'MasaConsistente':
+            Nmat = zeros((m, m*n))
+            rho = ModelData.density
+            for i in range(m):
+                Nmat[i, i::m] = N
+            #
+            A = rho*Nmat.T@Nmat*dX# *t
+        #
+        elif tipo == 'MasaConcentrada':
+            Nmat = zeros((m, m*n))
+            rho = ModelData.density
+            for i in range(m):
+                Nmat[i, i::m] = N
+            #
+            B = rho*Nmat.T@Nmat*dX# *t
+            one = zeros(m*n) + 1.0
+            B = B@one
+            A = zeros((m*n,m*n))
+            # Concentrando Masas
+            for i in range(m*n):
+                A[i,i] = B[i]
+        #
         elif tipo == 'VectorF':
             # Formando Matriz F
             Nmat=zeros((m,m*n))
             for i in range(m):
-                Nmat[i, i::m] = N[:].T
+                Nmat[i, i::m] = N
                 f = ModelData.selfweight*ModelData.gravity[0:m]
                 A = Nmat.T@f*dX # *t
                 
@@ -398,10 +420,10 @@ def ShapeFunction(X,gp,tipo):
         j = le/2
         #
     elif tipo == 'Tri3':
-        N, dN, J = zeros((3,1)), zeros((2,3)), zeros((2,2))
+        N, dN, J = zeros((1,3)), zeros((2,3)), zeros((2,2))
         #
         xi, eta = gp[1], gp[2]
-        N[0],N[1],N[2] = xi,eta,1.0-xi-eta
+        N[0,0],N[0,1],N[0,2] = xi,eta,1.0-xi-eta
         dN[0,0], dN[0,1], dN[0,2] =  1.0,  0.0, -1.0 # dN,ξ 
         dN[1,0], dN[1,1], dN[1,2] =  0.0,  1.0, -1.0 # dN,η
 
@@ -418,7 +440,7 @@ def ShapeFunction(X,gp,tipo):
         #
     elif tipo == 'Brick8':
 
-        N, dN, J = zeros((3, 8)), zeros((3, 8)), zeros((3, 3))
+        N, dN, J = zeros((1, 8)), zeros((3, 8)), zeros((3, 3))
         a = array([-1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0, -1.0])
         b = array([-1.0, -1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0])
         c = array([-1.0, -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0])
@@ -473,15 +495,10 @@ def Bernoulli(A, x, N, dN, ddN, ProblemData, ElementData, ModelData, dX, tipo):
         ##
     elif tipo == 'MasaConcentrada':
         rho = ModelData.density
-        B = rho*N.T@N*dX*Area
-        ##
-        one = zeros(m*n)
-        one[:] = 1.0
-        B = B@one
         A = zeros((m*n, m*n))
-        # Concentrando Masas (Mejorar proceso si |A| <= 0)
         for i in range(m*n):
-            A[i, i] = B[i]
+            if i%2==1: A[i, i] = 0.5*rho*dX*Area
+            else: A[i, i] = 0.005*rho*dX*Area
         ##
     elif(tipo == 'VectorF'):
         # Formando matriz N para v
