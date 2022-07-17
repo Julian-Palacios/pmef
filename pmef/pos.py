@@ -144,8 +144,6 @@ def stress(u, Mesh, ElementData, ProblemData, ModelData):
             count[connect_element] += 1
             
         for i in range(Mesh.NN):
-            print(sig[i])
-            print(count[i])
             sig[i] = sig[i]/count[i]
 
         vmises = zeros((Mesh.NN,1),'float')
