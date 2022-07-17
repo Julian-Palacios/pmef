@@ -1,4 +1,4 @@
-from numpy import zeros, array, average, append, delete, insert, arange
+from numpy import zeros, array, average, append, delete, insert, arange, hstack
 import matplotlib.pyplot as plt
 import matplotlib.image as image
 import matplotlib.colors as colors
@@ -74,37 +74,87 @@ def stress(u, Mesh, ElementData, ProblemData, ModelData):
             gp[2,0], gp[2,1], gp[2,2], gp[2,3] = -a,-a, a, a
         else:
             print("Debes programar para %s puntos aún"%n)
+        
+        N = Mesh.NN
+        sig = zeros((N,3),'float')
+        count = zeros(Mesh.NN,'int')
+        m = ElementData.dof
+        for connect_element in Mesh.Conex:
+            points = gp.T
+            points[:,0] = connect_element
+            x_element = Mesh.Nodos[connect_element]
+
+            for point in points:
+                nodo = int(point[0])
+                [N, dN,ddN, j] = ShapeFunction(x_element, point, ElementData.type)
+                B = zeros((3,m*n))
+                for i in range(m):
+                    B[i, i::m] = dN[i]
+                B[2, 0::m] = dN[1]
+                B[2, 1::m] = dN[0]
+                dof = DofMap(ElementData.dof, connect_element, ElementData.nodes)
+                sig[nodo] = sig[nodo] + D@B@u[dof]
+            count[connect_element] += 1
+        for i in range(Mesh.NN):
+            sig[i] = sig[i]/count[i]
+
     elif dim == 3:
+        E,v = ModelData.E, ModelData.v
+        D = zeros((6, 6))
+        λ = E * v / ((1.0 + v) * (1.0 - 2.0 * v))
+        μ = E / (2.0 * (1.0 + v))
+        D[0, 0] = D[1, 1] = D[2, 2] = λ + 2*μ 
+        D[3, 3] = D[4, 4] = D[5, 5] = μ
+        D[0, 1] = D[1, 0] = D[0, 2] = D[2, 0] = D[1, 2] = D[2, 1] = λ
+
         if n == 8:
-            print("Debes programar para %s puntos aún." %n)
+            a = 1.0
+            gp = zeros((4, 8))
+            gp[1, 0], gp[1, 1], gp[1, 2], gp[1, 3], gp[1, 4], gp[1, 5], gp[1, 6], gp[1, 7] = -a, a, a, -a, -a, a, a, -a
+            gp[2, 0], gp[2, 1], gp[2, 2], gp[2, 3], gp[2, 4], gp[2, 5], gp[2, 6], gp[2, 7] = -a, -a, a, a, -a, -a, a, a
+            gp[3, 0], gp[3, 1], gp[3, 2], gp[3, 3], gp[3, 4], gp[3, 5], gp[3, 6], gp[3, 7] = -a, -a, -a, -a, a, a, a, a
+
         else:
             print("Debes programar para %s puntos aún." %n)
+        N = Mesh.NN
+        sig = zeros((N,6),'float')
+        count = zeros(Mesh.NN,'int')
+        m = ElementData.dof
+
+        for connect_element in Mesh.Conex:
+            points = gp.T
+            points[:,0] = connect_element
+            x_element = Mesh.Nodos[connect_element]
+            for point in points:
+                nodo = int(point[0])
+
+                [N, dN,ddN, j] = ShapeFunction(x_element, point, ElementData.type)
+                B = zeros((6,m*n))
+                for i in range(m):
+                    B[i, i::m] = dN[i]
+                B[3, 0::m] = dN[1]
+                B[3, 1::m] = dN[0]
+                B[4, 1::m] = dN[2]
+                B[4, 2::m] = dN[1]
+                B[5, 0::m] = dN[2]
+                B[5, 2::m] = dN[0]
+                dof = DofMap(ElementData.dof, connect_element, ElementData.nodes)
+                sig[nodo] = sig[nodo] + D@B@u[dof]
+
+            count[connect_element] += 1
+            
+        for i in range(Mesh.NN):
+            print(sig[i])
+            print(count[i])
+            sig[i] = sig[i]/count[i]
+
+        vmises = zeros((Mesh.NN,1),'float')
+        for i in range(Mesh.NN):
+            vmises[i] = (((sig[i,0]-sig[i,1])**2 + (sig[i,1]-sig[i,2])**2 + (sig[i,0]-sig[i,2])**2 + 6*(sig[i,3]**2 + sig[i,4]**2 + sig[i,5]**2))/2)**0.5
+        sig = hstack((sig,vmises))
     else:
         print("Debes programar para %sD aún."%dim)
 
-    
-    N = Mesh.NN
-    sig = zeros((N,3),'float')
-    count = zeros(Mesh.NN,'int')
-    m = ElementData.dof
-    for connect_element in Mesh.Conex:
-        points = gp.T
-        points[:,0] = connect_element
-        x_element = Mesh.Nodos[connect_element]
-
-        for point in points:
-            nodo = int(point[0])
-            [N, dN,ddN, j] = ShapeFunction(x_element, point, ElementData.type)
-            B = zeros((3,m*n))
-            for i in range(m):
-                B[i, i::m] = dN[i]
-            B[2, 0::m] = dN[1]
-            B[2, 1::m] = dN[0]
-            dof = DofMap(ElementData.dof, connect_element, ElementData.nodes)
-            sig[nodo] = sig[nodo] + D@B@u[dof]
-        count[connect_element] += 1
-    for i in range(Mesh.NN):
-        sig[i] = sig[i]/count[i]
     return sig
 
 def graph(x,cnx,ax,color='k',d=0.01,logo=True,labels=False):
