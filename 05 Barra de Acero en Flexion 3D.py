@@ -1,4 +1,3 @@
-from typing import TextIO
 from pmef.pre import GenBrickMesh_3D
 from pmef.pro import AssembleMatrix, AssembleVector, ApplyBC
 from pmef.pos import deform, graph, K_reduce, V_insert
