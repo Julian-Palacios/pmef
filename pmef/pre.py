@@ -153,7 +153,7 @@ def GenBrickMesh_3D(L, B, H, lc):
 
     # Imprime los resultados
     print('=' * 16 + 'Mesh' + '=' * 16)
-    print("nx = {}, dx = {:.2f}, ny = {}, dy = {:.2f}, nz = {}, dz = {:.2f}".
+    print("nx = {}, dx = {:.2e}, ny = {}, dy = {:.2e}, nz = {}, dz = {:.2e}".
           format(nx, ms_x, ny, ms_y, nz, ms_z))
 
     # Define los nodos de la malla
