@@ -1,9 +1,10 @@
 from numpy import zeros, array
 from numpy.linalg import det, inv
 from scipy.sparse import lil_matrix, csr_matrix
+from time import time
 
 # Funciones principales
-def AssembleMatrix(Mesh, ElementData, ProblemData, ModelData, MatrixType):
+def AssembleMatrix(Mesh, ElementData, ProblemData, ModelData, MatrixType,showTime=False):
     '''Función que realiza el ensamble de la matriz A, del sistema Au = f.
 
     Input:
@@ -16,6 +17,9 @@ def AssembleMatrix(Mesh, ElementData, ProblemData, ModelData, MatrixType):
             A:          Arreglo obtenido del ensamble de los arreglos A_e
                         de los elementos finitos.
     '''
+    if showTime:
+        print("\nEnsamble de K en el Sistema global...")
+        start = time() 
     Ndof = Mesh.NN*ElementData.dof
     n = ElementData.nodes*ElementData.dof
     # Create ic, ir, data for sparse Matrix
@@ -24,8 +28,8 @@ def AssembleMatrix(Mesh, ElementData, ProblemData, ModelData, MatrixType):
     data = zeros(Mesh.NC*n*n,'float')
     cont = 0
     # Define Matriz para elementos
-    A_e   = zeros(n, dtype='float64')
-    A_int = zeros(n, dtype='float64')
+    A_e   = zeros((n,n), dtype='float64')
+    A_int = zeros((n,n), dtype='float64')
     # Obtiene pesos y posiciones de la Cuadratura de Gauss
     gp = GaussianQuadrature(ElementData.noInt, ProblemData.SpaceDim)
     # Bucle para ensamblar la matriz de cada elemento
@@ -56,9 +60,10 @@ def AssembleMatrix(Mesh, ElementData, ProblemData, ModelData, MatrixType):
         A_e[:] = 0.0
     # Define matriz sparse para la matriz A global 
     A = csr_matrix((data,(ir,ic)),shape=(Ndof,Ndof),dtype='float')
+    if showTime: print("AssembleMatrix demoró %.4f segundos"%(time()-start))
     return A
     
-def AssembleVector(Mesh, ElementData, ProblemData, ModelData, MatrixType):
+def AssembleVector(Mesh, ElementData, ProblemData, ModelData, MatrixType,showTime=False):
     '''Función que realiza el ensamble del vector f, del sistema Au = f.
     Input:
             Mesh:       Clase que contiene los nodos y conexiones
@@ -70,6 +75,9 @@ def AssembleVector(Mesh, ElementData, ProblemData, ModelData, MatrixType):
             f:          Vector obtenido del ensamble de los vectores f_e
                         de los elementos finitos.
     '''
+    if showTime:
+        print("\nEnsamble de f en el Sistema global...")
+        start = time()
     N = Mesh.NN*ElementData.dof
     n = ElementData.nodes*ElementData.dof
     # Define matriz sparse para el vecto f global 
@@ -79,27 +87,29 @@ def AssembleVector(Mesh, ElementData, ProblemData, ModelData, MatrixType):
     f_int  = zeros(n,'float64')
     # Obtiene pesos y posiciones de la Cuadratura de Gauss
     gp = GaussianQuadrature(ElementData.noInt,ProblemData.SpaceDim)
-    # Bucle para ensamblar la matriz de cada elemento
-    for connect_element in Mesh.Conex:
-        # Obtiene coordenadas de nodos del elemento
-        x_element = Mesh.Nodos[connect_element]
-        # Bucle para realizar la integración según Cuadratura de Gauss
-        for gauss_point in gp:
-            # Evalua los puntos de Gauss en las Funciones de Forma
-            [N, dN,ddN, j] = ShapeFunction(x_element, gauss_point,ElementData.type)
-            dX = gauss_point[0]*j
-            # Obtiene la Matriz de cada Elemento según el Problema(Elasticidad, Timoshenko, Bernoulli, etc)
-            f_int = eval(ProblemData.pde +'(f_int, x_element, N, dN, ddN, ProblemData, ElementData, ModelData, dX, "VectorF")')
-            f_e = f_e + f_int
-        # Mapea los grados de libertad
-        dof = DofMap(ElementData.dof, connect_element, ElementData.nodes)
-        # Ensambla la matriz del elemento en la matriz global
-        f[dof] = f[dof] + f_e
-        # Asigna 0 a la Matriz del Elemento
-        f_e = 0.0
+    # Bucle para ensamblar la matriz de cada elemento si peso propio no es 0
+    if ModelData.selfweight != 0.0:
+        for connect_element in Mesh.Conex:
+            # Obtiene coordenadas de nodos del elemento
+            x_element = Mesh.Nodos[connect_element]
+            # Bucle para realizar la integración según Cuadratura de Gauss
+            for gauss_point in gp:
+                # Evalua los puntos de Gauss en las Funciones de Forma
+                [N, dN,ddN, j] = ShapeFunction(x_element, gauss_point,ElementData.type)
+                dX = gauss_point[0]*j
+                # Obtiene la Matriz de cada Elemento según el Problema(Elasticidad, Timoshenko, Bernoulli, etc)
+                f_int = eval(ProblemData.pde +'(f_int, x_element, N, dN, ddN, ProblemData, ElementData, ModelData, dX, "VectorF")')
+                f_e = f_e + f_int
+            # Mapea los grados de libertad
+            dof = DofMap(ElementData.dof, connect_element, ElementData.nodes)
+            # Ensambla la matriz del elemento en la matriz global
+            f[dof] = f[dof] + f_e
+            # Asigna 0 a la Matriz del Elemento
+            f_e = 0.0
+    if showTime: print("AssembleVector demoró %.4f segundos"%(time()-start))
     return f
 
-def ApplyBC(A, f, BC_data, Mesh, ElementData,ProblemData, ModelData,showBC=False):
+def ApplyBC(A, f, BC_data, Mesh, ElementData,ProblemData, ModelData,showBC=False,showTime=False):
     '''Esta función aplica las condiciones de borde especificadas.
 
     Input:
@@ -113,6 +123,9 @@ def ApplyBC(A, f, BC_data, Mesh, ElementData,ProblemData, ModelData,showBC=False
             A:      Matriz del sistema global después de aplicar las CB.
             f:      Vector de fuerzas del sistema global después de aplicar las CB.       
     '''
+    if showTime:
+        print("\nAplicando Condiciones de Borde...")
+        start = time()
     A = A.tolil()
     for bc in BC_data:
         if int(bc[1]) == 0:  # Neumann
@@ -128,6 +141,8 @@ def ApplyBC(A, f, BC_data, Mesh, ElementData,ProblemData, ModelData,showBC=False
             f[dof] = bc[3]
         else:
             print('Condición de Borde Desconocida')
+    A = A.tocsr()
+    if showTime: print("ApplyBC demoró %.4f segundos"%(time()-start))
     return A,f
 
 def DofMap(DofNode, connect, NodesElement):
