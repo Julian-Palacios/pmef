@@ -60,7 +60,7 @@ for i in range(n-nxy,n):
 BC_data = array(BC_data,'float')
 
 
-# 2.1 Realiza el Ensamble y aplicamos Condiicones de Borde
+# 2.1 Realiza el Ensamble y aplicamos Condiciones de Borde
 K = AssembleMatrix(Mesh, ElementData, ProblemData, ModelData, 'MatrizK',showTime=True)
 f = AssembleVector(Mesh, ElementData, ProblemData, ModelData, "VectorF",showTime=True)
 [K, f] = ApplyBC(K, f, BC_data, Mesh, ElementData,ProblemData,ModelData,showTime=True)
@@ -78,5 +78,5 @@ print("error:%.4e"%err)
 
 # 3 Exporta los resultados
 defo = deform(Mesh.Nodos,u,FS=10.0)
-mesh = meshio.Mesh(defo,[("hexahedron",Mesh.Conex)],point_data={"Z":u[0::3]})
+mesh = meshio.Mesh(defo,[("hexahedron",Mesh.Conex)],point_data={"X":u[0::3]})
 mesh.write('output/result.vtk')

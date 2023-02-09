@@ -1,3 +1,4 @@
+LICENSE
 README.md
 setup.py
 pmef/__init__.py
