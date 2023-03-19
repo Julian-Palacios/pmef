@@ -87,25 +87,24 @@ def AssembleVector(Mesh, ElementData, ProblemData, ModelData, MatrixType,showTim
     f_int  = zeros(n,'float64')
     # Obtiene pesos y posiciones de la Cuadratura de Gauss
     gp = GaussianQuadrature(ElementData.noInt,ProblemData.SpaceDim)
-    # Bucle para ensamblar la matriz de cada elemento si peso propio no es 0
-    if ModelData.selfweight != 0.0:
-        for connect_element in Mesh.Conex:
-            # Obtiene coordenadas de nodos del elemento
-            x_element = Mesh.Nodos[connect_element]
-            # Bucle para realizar la integración según Cuadratura de Gauss
-            for gauss_point in gp:
-                # Evalua los puntos de Gauss en las Funciones de Forma
-                [N, dN,ddN, j] = ShapeFunction(x_element, gauss_point,ElementData.type)
-                dX = gauss_point[0]*j
-                # Obtiene la Matriz de cada Elemento según el Problema(Elasticidad, Timoshenko, Bernoulli, etc)
-                f_int = eval(ProblemData.pde +'(f_int, x_element, N, dN, ddN, ProblemData, ElementData, ModelData, dX, "VectorF")')
-                f_e = f_e + f_int
-            # Mapea los grados de libertad
-            dof = DofMap(ElementData.dof, connect_element, ElementData.nodes)
-            # Ensambla la matriz del elemento en la matriz global
-            f[dof] = f[dof] + f_e
-            # Asigna 0 a la Matriz del Elemento
-            f_e = 0.0
+    # Bucle para ensamblar la matriz de cada elemento
+    for connect_element in Mesh.Conex:
+        # Obtiene coordenadas de nodos del elemento
+        x_element = Mesh.Nodos[connect_element]
+        # Bucle para realizar la integración según Cuadratura de Gauss
+        for gauss_point in gp:
+            # Evalua los puntos de Gauss en las Funciones de Forma
+            [N, dN,ddN, j] = ShapeFunction(x_element, gauss_point,ElementData.type)
+            dX = gauss_point[0]*j
+            # Obtiene la Matriz de cada Elemento según el Problema(Elasticidad, Timoshenko, Bernoulli, etc)
+            f_int = eval(ProblemData.pde +'(f_int, x_element, N, dN, ddN, ProblemData, ElementData, ModelData, dX, "VectorF")')
+            f_e = f_e + f_int
+        # Mapea los grados de libertad
+        dof = DofMap(ElementData.dof, connect_element, ElementData.nodes)
+        # Ensambla la matriz del elemento en la matriz global
+        f[dof] = f[dof] + f_e
+        # Asigna 0 a la Matriz del Elemento
+        f_e = 0.0
     if showTime: print("AssembleVector demoró %.4f segundos"%(time()-start))
     return f
 
