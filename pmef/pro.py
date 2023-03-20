@@ -198,8 +198,8 @@ def Elasticity(A, X, N, dN,dNN, ProblemData, ElementData, ModelData, dX, tipo):
             Nmat=zeros((m,m*n))
             for i in range(m):
                 Nmat[i, i::m] = N
-                f = ModelData.selfweight*ModelData.gravity
-                A = Nmat*f*area*dX
+            f = ModelData.selfweight*ModelData.gravity
+            A = Nmat*f*area*dX
 
         else:
             print("Debes programar para el tipo %s aún."%tipo)
@@ -255,8 +255,8 @@ def Elasticity(A, X, N, dN,dNN, ProblemData, ElementData, ModelData, dX, tipo):
             Nmat=zeros((m,m*n))
             for i in range(m):
                 Nmat[i, i::m] = N
-                f = ModelData.selfweight*ModelData.gravity[0:m]
-                A = Nmat.T@f*dX*t
+            f = ModelData.selfweight*ModelData.gravity[0:m]
+            A = Nmat.T@f*dX*t
         #
         else:
             print("Debes programar para el tipo %s aún"%tipo)
@@ -315,8 +315,8 @@ def Elasticity(A, X, N, dN,dNN, ProblemData, ElementData, ModelData, dX, tipo):
             Nmat=zeros((m,m*n))
             for i in range(m):
                 Nmat[i, i::m] = N
-                f = ModelData.selfweight*ModelData.gravity[0:m]
-                A = Nmat.T@f*dX # *t
+            f = ModelData.selfweight*ModelData.gravity[0:m]
+            A = Nmat.T@f*dX # *t
                 
         else:
             print("Debes programar para el tipo %s aún"%tipo)
