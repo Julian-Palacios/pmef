@@ -210,14 +210,14 @@ def Elasticity(A, X, N, dN,dNN, ProblemData, ElementData, ModelData, dX, tipo):
         if tipo == 'MatrizK':
             E,v = ModelData.E, ModelData.v # Estado plano de esfuerzos
             if ModelData.state == 'PlaneStress': pass
-            elif ModelData.state == 'PlaneStrain': E,v = E/(1.0-v*2),v/(1-v)
+            elif ModelData.state == 'PlaneStrain': E,v = E/(1.0-v**2),v/(1.0-v)
             else: print('El estado plano solo puede ser "PlaneStress" o "PlaneStrain"')
             
             # Formando Matriz D
             D = zeros((3,3))
             D[0,0], D[1,1], D[0,1], D[1,0]= 1.0, 1.0, v, v
             D[2,2] = 0.5*(1.0-v)
-            D = E*D/(1-v**2)
+            D = E*D/(1.0-v**2)
             # print("D=",D)
             # Formando Matriz B
             B = zeros((3,m*n))
